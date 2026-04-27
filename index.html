@@ -2496,7 +2496,52 @@ async function salvarProcessoNovo() {
     carregarDashboard();
   }, 2500);
 }  
-  
+  // =====================================================
+// PROCESSOS — BLOCO 4
+// MOVER PROCESSO ENTRE FASES
+// =====================================================
+
+async function moverProcesso(idProcesso, faseAtual) {
+  const fases = [
+    'Negociação',
+    'Consultoria',
+    'Administrativo',
+    'Judicial',
+    'Recursal',
+    'Execução',
+    'Financeiro',
+    'Arquivamento'
+  ];
+
+  const novaFase = prompt(
+    'Para qual fase deseja mover este processo?\n\n' + fases.join('\n'),
+    faseAtual || 'Administrativo'
+  );
+
+  if (!novaFase) return;
+
+  if (!fases.includes(novaFase)) {
+    avisar('Fase inválida. Digite exatamente uma das opções.');
+    return;
+  }
+
+  const novaEtapa = prompt('Informe a nova etapa do processo:', '');
+
+  await apiPost('atualizarProcesso', {
+    idProcesso: idProcesso,
+    fase: novaFase,
+    etapa: novaEtapa || 'Atualizado',
+    status: 'ATIVO'
+  });
+
+  avisar('Processo movido.');
+
+  setTimeout(function() {
+    carregarProcessosTela();
+    carregarDashboard();
+  }, 2500);
+}
+ 
   </script>
 
 </body>
