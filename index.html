@@ -1,1 +1,885 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>CRM Previdenciário</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- =====================================================
+  ESTILO GLOBAL — PADRÃO VISUAL PROFISSIONAL
+  ===================================================== -->
+  <style>
+    :root {
+      --bg: #0f172a;
+      --sidebar: #020617;
+      --card: #111827;
+      --accent: #2563eb;
+      --accent2: #22c55e;
+      --text: #e5e7eb;
+      --subtext: #9ca3af;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+    }
+
+    /* =====================================================
+    SIDEBAR
+    ===================================================== */
+    .sidebar {
+      width: 240px;
+      height: 100vh;
+      background: var(--sidebar);
+      padding: 20px;
+      position: fixed;
+      left: 0;
+      top: 0;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 30px;
+      color: var(--accent);
+    }
+
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .menu button {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      text-align: left;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .menu button:hover {
+      background: var(--card);
+    }
+
+    .menu button.active {
+      background: var(--accent);
+    }
+
+    /* =====================================================
+    CONTEÚDO
+    ===================================================== */
+    .main {
+      margin-left: 240px;
+      padding: 20px;
+      width: 100%;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    /* =====================================================
+    CARDS
+    ===================================================== */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      background: var(--card);
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .card h3 {
+      font-size: 14px;
+      color: var(--subtext);
+      margin-bottom: 5px;
+    }
+
+    .card p {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    /* =====================================================
+    BOTÕES
+    ===================================================== */
+    .btn {
+      background: var(--accent);
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn.green {
+      background: var(--accent2);
+    }
+
+    .btn.red {
+      background: var(--danger);
+    }
+
+    /* =====================================================
+    TABELA
+    ===================================================== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #1f2937;
+      text-align: left;
+    }
+
+    th {
+      color: var(--subtext);
+      font-size: 13px;
+    }
+
+    tr:hover {
+      background: #1f2937;
+    }
+
+    /* =====================================================
+    INPUTS
+    ===================================================== */
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #1f2937;
+      color: white;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--subtext);
+    }
+
+    /* =====================================================
+    PÁGINAS (SPA)
+    ===================================================== */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- =====================================================
+  SIDEBAR
+  ===================================================== -->
+  <div class="sidebar">
+    <div class="logo">CRM PREVIDENCIÁRIO</div>
+
+    <div class="menu">
+      <button onclick="navegar('dashboard')" class="active">Dashboard</button>
+      <button onclick="navegar('clientes')">Clientes</button>
+      <button onclick="navegar('processos')">Processos</button>
+      <button onclick="navegar('agenda')">Agenda</button>
+      <button onclick="navegar('financeiro')">Financeiro</button>
+      <button onclick="navegar('documentos')">Documentos</button>
+      <button onclick="navegar('config')">Configurações</button>
+    </div>
+  </div>
+
+  <!-- =====================================================
+  CONTEÚDO PRINCIPAL
+  ===================================================== -->
+  <div class="main">
+
+        <!-- =====================================================
+    TOPBAR
+    ===================================================== -->
+    <div class="topbar">
+      <div>
+        <div class="title">Bem-vinda, Dra. Patrícia 👩‍⚖️</div>
+        <div style="color: var(--subtext); font-size: 13px; margin-top: 4px;">
+          Sistema principal do escritório — clientes, processos, documentos, agenda e financeiro.
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <select id="usuarioAtual" style="width: 150px; margin: 0;">
+          <option value="PATRICIA">PATRICIA</option>
+          <option value="BRUNO">BRUNO</option>
+          <option value="LORRAYNE">LORRAYNE</option>
+        </select>
+
+        <button class="btn green" onclick="testarConexao()">Testar conexão</button>
+      </div>
+    </div>
+
+
+    <!-- =====================================================
+    PÁGINA: DASHBOARD
+    ===================================================== -->
+    <section id="page-dashboard" class="page active">
+      <div class="cards">
+        <div class="card">
+          <h3>Clientes cadastrados</h3>
+          <p id="dashClientes">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Processos</h3>
+          <p id="dashProcessos">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Concedidos</h3>
+          <p id="dashConcedidos">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Indeferidos</h3>
+          <p id="dashIndeferidos">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Tarefas pendentes</h3>
+          <p id="dashTarefas">0</p>
+        </div>
+
+        <div class="card">
+          <h3>Agenda pendente</h3>
+          <p id="dashAgenda">0</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h3>Status do sistema</h3>
+        <p id="statusSistema" style="font-size: 15px; font-weight: normal; color: var(--subtext);">
+          Aguardando conexão com o Apps Script...
+        </p>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: CLIENTES
+    ===================================================== -->
+    <section id="page-clientes" class="page">
+      <div class="topbar">
+        <div class="title">Clientes</div>
+        <button class="btn green" onclick="abrirModalNovoCliente()">+ Novo cliente</button>
+      </div>
+
+      <div class="card">
+        <label>Buscar cliente</label>
+        <input id="buscaCliente" placeholder="Digite nome, CPF, benefício ou status..." oninput="buscarClientesTela()">
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>CPF</th>
+              <th>Benefício principal</th>
+              <th>Status</th>
+              <th>Responsável</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaClientes">
+            <tr>
+              <td colspan="6" style="color: var(--subtext);">Nenhum cliente carregado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: PROCESSOS
+    ===================================================== -->
+    <section id="page-processos" class="page">
+      <div class="topbar">
+        <div class="title">Processos</div>
+        <button class="btn green" onclick="abrirModalProcesso()">+ Novo processo</button>
+      </div>
+
+      <div class="card">
+        <p style="color: var(--subtext); font-size: 14px;">
+          Aqui ficará o quadro de processos por fase: Negociação, Consultoria, Administrativo, Judicial, Recursal, Execução, Financeiro e Arquivamento.
+        </p>
+
+        <div id="areaProcessos" style="margin-top: 15px;"></div>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: AGENDA
+    ===================================================== -->
+    <section id="page-agenda" class="page">
+      <div class="topbar">
+        <div class="title">Agenda e Providências</div>
+        <button class="btn green" onclick="abrirModalAgenda()">+ Novo agendamento</button>
+      </div>
+
+      <div class="card">
+        <p style="color: var(--subtext); font-size: 14px;">
+          Agenda, perícias, consultas, prazos e tarefas do escritório.
+        </p>
+
+        <div id="areaAgenda" style="margin-top: 15px;"></div>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: FINANCEIRO
+    ===================================================== -->
+    <section id="page-financeiro" class="page">
+      <div class="topbar">
+        <div class="title">Financeiro</div>
+        <button class="btn green" onclick="abrirModalFinanceiro()">+ Lançamento</button>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3>Total de entradas</h3>
+          <p id="finEntradas">R$ 0,00</p>
+        </div>
+
+        <div class="card">
+          <h3>Custos / saídas</h3>
+          <p id="finSaidas">R$ 0,00</p>
+        </div>
+
+        <div class="card">
+          <h3>Lucro líquido</h3>
+          <p id="finLucro">R$ 0,00</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <p style="color: var(--subtext); font-size: 14px;">
+          O financeiro detalhado por cliente será integrado nos próximos blocos.
+        </p>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: DOCUMENTOS
+    ===================================================== -->
+    <section id="page-documentos" class="page">
+      <div class="topbar">
+        <div class="title">Documentos</div>
+      </div>
+
+      <div class="card">
+        <p style="color: var(--subtext); font-size: 14px;">
+          Área de anexos, checklist documental, contrato, procuração, ficha PDF e pastas do Drive.
+        </p>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    PÁGINA: CONFIGURAÇÕES
+    ===================================================== -->
+    <section id="page-config" class="page">
+      <div class="topbar">
+        <div class="title">Configurações</div>
+      </div>
+
+      <div class="card">
+        <h3>Apps Script</h3>
+        <p style="font-size: 14px; color: var(--subtext); margin-top: 8px;">
+          URL atual do backend:
+        </p>
+
+        <input id="backendUrlView" readonly>
+
+        <button class="btn green" onclick="testarConexao()">Testar conexão</button>
+        <button class="btn" onclick="inicializarSistema()" style="margin-left: 8px;">Inicializar estrutura</button>
+        <button class="btn" onclick="gerarBackup()" style="margin-left: 8px;">Gerar backup</button>
+      </div>
+    </section>
+
+
+    <!-- =====================================================
+    MODAL GLOBAL
+    ===================================================== -->
+    <div id="modalOverlay" style="
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    ">
+      <div style="
+        background: var(--card);
+        width: min(900px, 100%);
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <div id="modalTitulo" class="title">Modal</div>
+          <button class="btn red" onclick="fecharModal()">Fechar</button>
+        </div>
+
+        <div id="modalConteudo"></div>
+        <div id="modalRodape" style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;"></div>
+      </div>
+    </div>
+
+  </div>
+    <!-- =====================================================
+  JAVASCRIPT BASE — CONEXÃO + NAVEGAÇÃO + DASHBOARD
+  ===================================================== -->
+  <script>
+    // =====================================================
+    // 1. URL DO APPS SCRIPT
+    // =====================================================
+    const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwfflhd1L9g1L6G0Y8ZZd4Ck5tDpaYo33Obvx9VYE-zAgFoAVP-fl_X-k4A19b8iSGMcQ/exec';
+
+
+    // =====================================================
+    // 2. ESTADO GLOBAL DO SISTEMA
+    // =====================================================
+    const appState = {
+      paginaAtual: 'dashboard',
+      clientes: [],
+      dashboard: null
+    };
+
+
+    // =====================================================
+    // 3. NAVEGAÇÃO ENTRE PÁGINAS
+    // =====================================================
+    function navegar(pagina) {
+      appState.paginaAtual = pagina;
+
+      document.querySelectorAll('.page').forEach(function(sec) {
+        sec.classList.remove('active');
+      });
+
+      const alvo = document.getElementById('page-' + pagina);
+      if (alvo) alvo.classList.add('active');
+
+      document.querySelectorAll('.menu button').forEach(function(btn) {
+        btn.classList.remove('active');
+      });
+
+      const botao = Array.from(document.querySelectorAll('.menu button')).find(function(btn) {
+        return btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + pagina + "'");
+      });
+
+      if (botao) botao.classList.add('active');
+
+      if (pagina === 'dashboard') carregarDashboard();
+      if (pagina === 'clientes') carregarClientes();
+      if (pagina === 'config') preencherConfiguracoes();
+    }
+
+
+    // =====================================================
+    // 4. USUÁRIO ATUAL
+    // =====================================================
+    function usuarioAtual() {
+      const el = document.getElementById('usuarioAtual');
+      return el ? el.value : 'PATRICIA';
+    }
+
+
+    // =====================================================
+    // 5. JSONP — GET SEGURO
+    // =====================================================
+    function apiGet(acao, params = {}) {
+      return new Promise(function(resolve, reject) {
+        const callbackName = 'jsonp_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+
+        params.acao = acao;
+        params.callback = callbackName;
+
+        const query = Object.keys(params).map(function(k) {
+          return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+        }).join('&');
+
+        const script = document.createElement('script');
+        script.src = BACKEND_URL + '?' + query;
+
+        const timer = setTimeout(function() {
+          cleanup();
+          reject(new Error('Tempo de conexão esgotado.'));
+        }, 20000);
+
+        window[callbackName] = function(data) {
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('Erro ao conectar com o Apps Script.'));
+        };
+
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        document.body.appendChild(script);
+      });
+    }
+
+
+    // =====================================================
+    // 6. POST NO-CORS — ENVIO DE DADOS
+    // =====================================================
+    function apiPost(acao, dados = {}) {
+      dados.acao = acao;
+      dados.responsavel = dados.responsavel || usuarioAtual();
+
+      return fetch(BACKEND_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(dados)
+      }).then(function() {
+        return {
+          ok: true,
+          mensagem: 'Dados enviados. Atualize/consulte a tela para confirmar.'
+        };
+      });
+    }
+
+
+    // =====================================================
+    // 7. MODAL GLOBAL
+    // =====================================================
+    function abrirModal(titulo, conteudo, rodape) {
+      document.getElementById('modalTitulo').innerText = titulo;
+      document.getElementById('modalConteudo').innerHTML = conteudo || '';
+      document.getElementById('modalRodape').innerHTML = rodape || '';
+      document.getElementById('modalOverlay').style.display = 'flex';
+    }
+
+    function fecharModal() {
+      document.getElementById('modalOverlay').style.display = 'none';
+    }
+
+
+    // =====================================================
+    // 8. ALERTAS VISUAIS SIMPLES
+    // =====================================================
+    function avisar(msg) {
+      alert(msg);
+    }
+
+
+    // =====================================================
+    // 9. TESTAR CONEXÃO
+    // =====================================================
+    async function testarConexao() {
+      const status = document.getElementById('statusSistema');
+      if (status) status.innerText = 'Testando conexão...';
+
+      try {
+        const resp = await apiGet('ping');
+
+        if (resp.ok) {
+          if (status) {
+            status.innerText = 'Conexão ativa com Apps Script. Última resposta: ' + (resp.dataHora || '');
+          }
+
+          avisar('Conexão funcionando corretamente.');
+        } else {
+          if (status) status.innerText = 'Backend respondeu, mas com erro.';
+          avisar(resp.mensagem || 'Erro ao testar conexão.');
+        }
+
+      } catch (erro) {
+        if (status) status.innerText = 'Falha na conexão: ' + erro.message;
+        avisar('Falha na conexão: ' + erro.message);
+      }
+    }
+
+
+    // =====================================================
+    // 10. INICIALIZAR SISTEMA
+    // =====================================================
+    async function inicializarSistema() {
+      try {
+        avisar('A estrutura será validada/criada na planilha e no Drive.');
+
+        const resp = await apiGet('inicializarSistema');
+
+        if (resp.ok) {
+          avisar('Sistema inicializado com sucesso.');
+          carregarDashboard();
+        } else {
+          avisar(resp.mensagem || 'Erro ao inicializar.');
+        }
+
+      } catch (erro) {
+        avisar('Erro ao inicializar: ' + erro.message);
+      }
+    }
+
+
+    // =====================================================
+    // 11. GERAR BACKUP
+    // =====================================================
+    async function gerarBackup() {
+      try {
+        const resp = await apiGet('gerarBackupPlanilha');
+
+        if (resp.ok) {
+          avisar('Backup gerado com sucesso.');
+          if (resp.linkBackup) window.open(resp.linkBackup, '_blank');
+        } else {
+          avisar(resp.mensagem || 'Erro ao gerar backup.');
+        }
+
+      } catch (erro) {
+        avisar('Erro ao gerar backup: ' + erro.message);
+      }
+    }
+
+
+    // =====================================================
+    // 12. CARREGAR DASHBOARD
+    // =====================================================
+    async function carregarDashboard() {
+      try {
+        const resp = await apiGet('obterDashboard');
+
+        if (!resp.ok) {
+          console.warn(resp);
+          return;
+        }
+
+        appState.dashboard = resp.dashboard || {};
+
+        document.getElementById('dashClientes').innerText = appState.dashboard.totalClientes || 0;
+        document.getElementById('dashProcessos').innerText = appState.dashboard.totalProcessos || 0;
+        document.getElementById('dashConcedidos').innerText = appState.dashboard.concedidos || 0;
+        document.getElementById('dashIndeferidos').innerText = appState.dashboard.indeferidos || 0;
+        document.getElementById('dashTarefas').innerText = appState.dashboard.tarefasPendentes || 0;
+        document.getElementById('dashAgenda').innerText = appState.dashboard.agendaPendente || 0;
+
+        if (appState.dashboard.financeiro) {
+          document.getElementById('finEntradas').innerText = moeda(appState.dashboard.financeiro.totalEntradas || 0);
+          document.getElementById('finSaidas').innerText = moeda(appState.dashboard.financeiro.totalSaidas || 0);
+          document.getElementById('finLucro').innerText = moeda(appState.dashboard.financeiro.lucroLiquido || 0);
+        }
+
+        const status = document.getElementById('statusSistema');
+        if (status) {
+          status.innerText = 'Sistema conectado. Atualizado em: ' + (appState.dashboard.atualizadoEm || '');
+        }
+
+      } catch (erro) {
+        console.error(erro);
+        const status = document.getElementById('statusSistema');
+        if (status) status.innerText = 'Erro ao carregar dashboard: ' + erro.message;
+      }
+    }
+
+
+    // =====================================================
+    // 13. CLIENTES — CARREGAMENTO INICIAL
+    // =====================================================
+    async function carregarClientes() {
+      try {
+        const resp = await apiGet('listarClientes');
+
+        if (!resp.ok) {
+          avisar(resp.mensagem || 'Erro ao listar clientes.');
+          return;
+        }
+
+        appState.clientes = resp.clientes || [];
+        renderizarClientes(appState.clientes);
+
+      } catch (erro) {
+        avisar('Erro ao carregar clientes: ' + erro.message);
+      }
+    }
+
+
+    function buscarClientesTela() {
+      const termo = (document.getElementById('buscaCliente').value || '').toLowerCase();
+
+      const filtrados = appState.clientes.filter(function(c) {
+        return [
+          c.nome,
+          c.cpf,
+          c.beneficioPrincipal,
+          c.statusProcesso,
+          c.responsavel
+        ].join(' ').toLowerCase().includes(termo);
+      });
+
+      renderizarClientes(filtrados);
+    }
+
+
+    function renderizarClientes(lista) {
+      const tbody = document.getElementById('tabelaClientes');
+
+      if (!lista || lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color: var(--subtext);">Nenhum cliente encontrado.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = lista.map(function(c) {
+        return `
+          <tr>
+            <td><strong>${esc(c.nome || '')}</strong></td>
+            <td>${esc(c.cpf || '')}</td>
+            <td>${esc(c.beneficioPrincipal || '')}</td>
+            <td>${esc(c.statusProcesso || '')}</td>
+            <td>${esc(c.responsavel || '')}</td>
+            <td>
+              <button class="btn" onclick="abrirFichaCliente('${escAttr(c.cpf)}')">Ficha</button>
+              <button class="btn green" onclick="abrirModalEditarCliente('${escAttr(c.cpf)}')">Editar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+
+    // =====================================================
+    // 14. PLACEHOLDERS PARA OS PRÓXIMOS BLOCOS
+    // =====================================================
+    function abrirModalNovoCliente() {
+      avisar('Cadastro completo será incluído no próximo bloco.');
+    }
+
+    function abrirModalEditarCliente(cpf) {
+      avisar('Edição completa será incluída no próximo bloco. CPF: ' + cpf);
+    }
+
+    function abrirFichaCliente(cpf) {
+      avisar('Ficha completa será incluída nos próximos blocos. CPF: ' + cpf);
+    }
+
+    function abrirModalProcesso() {
+      avisar('Processos serão incluídos no bloco de processos.');
+    }
+
+    function abrirModalAgenda() {
+      avisar('Agenda será incluída no bloco de agenda.');
+    }
+
+    function abrirModalFinanceiro() {
+      avisar('Financeiro será incluído no bloco financeiro.');
+    }
+
+
+    // =====================================================
+    // 15. CONFIGURAÇÕES
+    // =====================================================
+    function preencherConfiguracoes() {
+      const el = document.getElementById('backendUrlView');
+      if (el) el.value = BACKEND_URL;
+    }
+
+
+    // =====================================================
+    // 16. UTILITÁRIOS
+    // =====================================================
+    function esc(valor) {
+      return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function escAttr(valor) {
+      return esc(valor).replaceAll('\n', ' ');
+    }
+
+    function moeda(valor) {
+      return Number(valor || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      });
+    }
+
+    function apenasNumeros(valor) {
+      return String(valor || '').replace(/\D/g, '');
+    }
+
+    function formatarCPF(valor) {
+      const d = apenasNumeros(valor).slice(0, 11);
+      if (d.length !== 11) return valor || '';
+      return d.slice(0,3) + '.' + d.slice(3,6) + '.' + d.slice(6,9) + '-' + d.slice(9);
+    }
+
+    function formatarTelefone(valor) {
+      const d = apenasNumeros(valor).slice(0, 11);
+      if (d.length === 10) return '(' + d.slice(0,2) + ') ' + d.slice(2,6) + '-' + d.slice(6);
+      if (d.length === 11) return '(' + d.slice(0,2) + ') ' + d.slice(2,7) + '-' + d.slice(7);
+      return valor || '';
+    }
+
+
+    // =====================================================
+    // 17. INICIALIZAÇÃO DA PÁGINA
+    // =====================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      preencherConfiguracoes();
+      carregarDashboard();
+    });
+  </script>
+
+</body>
+</html>
