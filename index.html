@@ -2300,6 +2300,179 @@ document.addEventListener('keydown', function(e) {
     abrirModalNovoCliente();
   }
 }); 
+    // =====================================================
+// CORREÇÃO — AGENDA GERAL + AGENDA DO CLIENTE
+// Cole no final do <script>, antes de </script>
+// =====================================================
+
+async function carregarAgendaGeral() {
+  const area = document.getElementById('areaAgenda');
+  if (!area) return;
+
+  area.innerHTML = '<p style="color:var(--subtext);">Carregando agenda...</p>';
+
+  try {
+    const resp = await apiGet('listarAgenda');
+
+    if (!resp.ok) {
+      area.innerHTML = '<p>Erro ao carregar agenda.</p>';
+      return;
+    }
+
+    const lista = resp.agenda || [];
+
+    if (lista.length === 0) {
+      area.innerHTML = '<p style="color:var(--subtext);">Nenhum agendamento cadastrado.</p>';
+      return;
+    }
+
+    area.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Cliente</th>
+            <th>Tipo</th>
+            <th>Local</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map(a => `
+            <tr>
+              <td>${esc(a.DataAgendamento || '')}</td>
+              <td>${esc(a.Hora || '')}</td>
+              <td>${esc(a.Nome || '')}<br><small>${esc(a.CPF || '')}</small></td>
+              <td>${esc(a.Tipo || '')}</td>
+              <td>${esc(a.ClinicaLocal || '')}</td>
+              <td>${esc(a.Status || '')}</td>
+              <td>
+                <button class="btn green" onclick="alterarStatusAgenda('${escAttr(a.IDAgenda)}','CONCLUIDO')">Concluir</button>
+                <button class="btn red" onclick="alterarStatusAgenda('${escAttr(a.IDAgenda)}','CANCELADO')">Cancelar</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+  } catch (e) {
+    area.innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
+
+
+// Corrige navegação para carregar a agenda quando clicar no menu
+const navegarOriginalAgenda = navegar;
+
+navegar = function(pagina) {
+  navegarOriginalAgenda(pagina);
+
+  if (pagina === 'agenda') {
+    carregarAgendaGeral();
+  }
+};
+
+
+// Corrige agenda do cliente
+async function abrirAgendaCliente(cpf) {
+  abrirModal('Agenda do cliente', '<p style="color:var(--subtext);">Carregando agenda do cliente...</p>');
+
+  try {
+    const resp = await apiGet('listarAgenda');
+
+    if (!resp.ok) {
+      document.getElementById('modalConteudo').innerHTML = '<p>Erro ao carregar agenda.</p>';
+      return;
+    }
+
+    const lista = (resp.agenda || []).filter(a => apenasNumeros(a.CPF) === apenasNumeros(cpf));
+
+    let html = `
+      <div class="card">
+        <h3>Agendamentos do cliente</h3>
+        ${lista.length === 0 ? '<p style="color:var(--subtext);">Nenhum agendamento cadastrado para este cliente.</p>' : ''}
+        ${lista.map(a => `
+          <div style="border-bottom:1px solid #333; padding:10px 0;">
+            <b>${esc(a.Tipo || '')}</b><br>
+            <span>${esc(a.DataAgendamento || '')} às ${esc(a.Hora || '')}</span><br>
+            <span>${esc(a.ClinicaLocal || '')}</span><br>
+            <span>Status: <b>${esc(a.Status || '')}</b></span>
+
+            <div style="margin-top:8px;">
+              <button class="btn green" onclick="alterarStatusAgenda('${escAttr(a.IDAgenda)}','CONCLUIDO','${escAttr(cpf)}')">Concluir</button>
+              <button class="btn red" onclick="alterarStatusAgenda('${escAttr(a.IDAgenda)}','CANCELADO','${escAttr(cpf)}')">Cancelar</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Providências / Tarefas</h3>
+        <div id="areaProvidencias">Carregando tarefas...</div>
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn green" onclick="abrirModalAgenda('${escAttr(cpf)}')">+ Agendamento</button>
+      <button class="btn" onclick="abrirModalProvidencia('${escAttr(cpf)}')">+ Tarefa</button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Agenda do cliente', html, rodape);
+    carregarProvidenciasCliente(cpf);
+
+  } catch (e) {
+    document.getElementById('modalConteudo').innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
+
+
+// Corrige salvar agendamento para atualizar a tela certa
+async function salvarAgenda(cpf) {
+  const dados = {
+    cpf: cpf,
+    tipo: document.getElementById('age_tipo').value,
+    dataAgendamento: document.getElementById('age_data').value,
+    hora: document.getElementById('age_hora').value,
+    clinicaLocal: document.getElementById('age_local').value,
+    especialidade: document.getElementById('age_especialidade').value,
+    observacao: document.getElementById('age_obs').value,
+    status: 'AGENDADO'
+  };
+
+  if (!dados.tipo || !dados.dataAgendamento) {
+    avisar('Preencha pelo menos o tipo e a data.');
+    return;
+  }
+
+  await apiPost('criarAgendamento', dados);
+
+  avisar('Agendamento criado.');
+
+  setTimeout(function() {
+    abrirAgendaCliente(cpf);
+    carregarAgendaGeral();
+  }, 2500);
+}
+
+
+// Corrige alteração de status
+async function alterarStatusAgenda(id, status, cpf = '') {
+  await apiPost('atualizarStatusAgenda', {
+    idAgenda: id,
+    status: status
+  });
+
+  avisar('Agenda atualizada.');
+
+  setTimeout(function() {
+    if (cpf) abrirAgendaCliente(cpf);
+    carregarAgendaGeral();
+  }, 2000);
+}
   </script>
 
 </body>
