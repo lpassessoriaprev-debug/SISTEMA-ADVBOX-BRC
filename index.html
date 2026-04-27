@@ -4798,50 +4798,48 @@ async function carregarFinanceiroGeral() {
       return;
     }
 
-    const fin = resp.dashboard?.financeiro || {};
+    const fin = resp.dashboard && resp.dashboard.financeiro ? resp.dashboard.financeiro : {};
 
-    const cards = `
+    page.innerHTML = `
       <div class="topbar">
         <div class="title">Financeiro Geral</div>
       </div>
 
       <div class="cards">
         <div class="card">
-          <h3>Total de entradas</h3>
-          <p>${moeda(fin.totalEntradas || 0)}</p>
-        </div>
-
-        <div class="card">
-          <h3>Total de saídas</h3>
-          <p>${moeda(fin.totalSaidas || 0)}</p>
-        </div>
-
-        <div class="card">
-          <h3>Lucro líquido</h3>
-          <p>${moeda(fin.lucroLiquido || 0)}</p>
-        </div>
-
-        <div class="card">
-          <h3>Total pago</h3>
+          <h3>💰 Recebido</h3>
           <p>${moeda(fin.totalPago || 0)}</p>
         </div>
 
         <div class="card">
-          <h3>Total pendente</h3>
+          <h3>📥 A receber</h3>
           <p>${moeda(fin.totalPendente || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>📊 Entradas previstas</h3>
+          <p>${moeda(fin.totalEntradas || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>💸 Despesas lançadas</h3>
+          <p>${moeda(fin.totalSaidas || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>📈 Saldo estimado</h3>
+          <p>${moeda(fin.lucroLiquido || 0)}</p>
         </div>
       </div>
 
       <div class="card" style="margin-top:20px;">
         <h3>Orientação</h3>
         <p style="color:var(--subtext); font-size:14px;">
-          Para lançar valores, abra o cliente na aba Clientes e clique em 💰 Fin.
-          O financeiro geral soma todos os lançamentos cadastrados no sistema.
+          Para lançar valores vinculados a clientes, abra Clientes e clique em 💰 Fin.
+          Esta tela mostra apenas o resumo geral do escritório.
         </p>
       </div>
     `;
-
-    page.innerHTML = cards;
 
   } catch (e) {
     avisar('Erro no financeiro geral: ' + e.message);
