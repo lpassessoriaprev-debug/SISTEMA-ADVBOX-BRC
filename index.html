@@ -4250,13 +4250,42 @@ async function gerarFichaPDFDocumentos(cpf) {
 
 
 async function abrirWhatsAppDadosCliente(cpf) {
-  const resp = await apiGet('gerarTextoWhatsAppCliente', { cpf: cpf });
+  try {
+    abrirModal('WhatsApp dados', '<p>Gerando mensagem...</p>');
 
-  if (resp.ok && resp.whatsappURL) {
-    window.open(resp.whatsappURL, '_blank');
-  } else {
-    avisar(resp.mensagem || 'Não foi possível gerar mensagem.');
+    const resp = await apiGet('gerarTextoWhatsAppCliente', { cpf: cpf });
+
+    if (!resp.ok) {
+      document.getElementById('modalConteudo').innerHTML = '<p>Não foi possível gerar a mensagem.</p>';
+      return;
+    }
+
+    const texto = resp.texto || '';
+    const url = resp.whatsappURL || ('https://wa.me/?text=' + encodeURIComponent(texto));
+
+    document.getElementById('modalConteudo').innerHTML = `
+      <label>Mensagem pronta</label>
+      <textarea id="textoWhatsappGerado" style="height:260px;">${esc(texto)}</textarea>
+    `;
+
+    document.getElementById('modalRodape').innerHTML = `
+      <button class="btn" onclick="copiarTextoWhatsapp()">Copiar texto</button>
+      <button class="btn green" onclick="window.open('${escAttr(url)}','_blank')">Abrir WhatsApp</button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+  } catch (e) {
+    avisar('Erro ao gerar WhatsApp: ' + e.message);
   }
+}
+
+function copiarTextoWhatsapp() {
+  const campo = document.getElementById('textoWhatsappGerado');
+  if (!campo) return;
+
+  campo.select();
+  document.execCommand('copy');
+  avisar('Texto copiado.');
 }
 
 
