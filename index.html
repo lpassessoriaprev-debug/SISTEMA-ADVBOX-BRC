@@ -2562,7 +2562,175 @@ async function confirmarMoverProcesso(idProcesso, novaFase) {
     carregarDashboard();
   }, 2000);
 }
- 
+ // =====================================================
+// AGENDA — CORREÇÃO SIMPLES E SEGURA
+// =====================================================
+
+async function carregarAgendaTela() {
+  const area = document.getElementById('areaAgenda');
+  if (!area) return;
+
+  area.innerHTML = '<p style="color:var(--subtext);">Carregando agendamentos...</p>';
+
+  try {
+    const resp = await apiGet('listarAgenda');
+    const lista = resp.agenda || [];
+
+    if (!lista.length) {
+      area.innerHTML = '<p style="color:var(--subtext);">Nenhum agendamento cadastrado ainda.</p>';
+      return;
+    }
+
+    area.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Cliente</th>
+            <th>Tipo</th>
+            <th>Local</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map(a => `
+            <tr>
+              <td>${esc(a.DataAgendamento || '')}</td>
+              <td>${esc(a.Hora || '')}</td>
+              <td>${esc(a.Nome || '')}<br><small>${esc(a.CPF || '')}</small></td>
+              <td>${esc(a.Tipo || '')}</td>
+              <td>${esc(a.ClinicaLocal || '')}</td>
+              <td>${esc(a.Status || '')}</td>
+              <td>
+                <button class="btn green" onclick="alterarStatusAgendaTela('${escAttr(a.IDAgenda)}','CONCLUIDO')">Concluir</button>
+                <button class="btn red" onclick="alterarStatusAgendaTela('${escAttr(a.IDAgenda)}','CANCELADO')">Cancelar</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
+  }
+}
+
+
+async function abrirModalAgenda() {
+  if (!appState.clientes || !appState.clientes.length) {
+    await carregarClientes();
+  }
+
+  const clientes = appState.clientes || [];
+
+  const html = `
+    <label>Cliente *</label>
+    <select id="age_cpf">
+      <option value="">Selecione o cliente</option>
+      ${clientes.map(c => `
+        <option value="${escAttr(c.cpf)}">${esc(c.nome)} — ${esc(c.cpf)}</option>
+      `).join('')}
+    </select>
+
+    <label>Tipo *</label>
+    <select id="age_tipo">
+      <option>Consulta</option>
+      <option>Perícia INSS</option>
+      <option>Perícia Judicial</option>
+      <option>Prazo</option>
+      <option>Diverso</option>
+    </select>
+
+    <label>Data *</label>
+    <input id="age_data" placeholder="DD/MM/AAAA">
+
+    <label>Hora</label>
+    <input id="age_hora" placeholder="09:00">
+
+    <label>Local</label>
+    <input id="age_local" placeholder="INSS, clínica, fórum...">
+
+    <label>Especialidade</label>
+    <input id="age_especialidade">
+
+    <label>Observação</label>
+    <textarea id="age_obs"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarAgendaTela()">Salvar</button>
+  `;
+
+  abrirModal('Novo agendamento', html, rodape);
+}
+
+
+async function salvarAgendaTela() {
+  const cpf = document.getElementById('age_cpf').value;
+
+  if (!cpf) {
+    avisar('Selecione o cliente.');
+    return;
+  }
+
+  const dados = {
+    cpf: cpf,
+    tipo: document.getElementById('age_tipo').value,
+    dataAgendamento: document.getElementById('age_data').value,
+    hora: document.getElementById('age_hora').value,
+    clinicaLocal: document.getElementById('age_local').value,
+    especialidade: document.getElementById('age_especialidade').value,
+    observacao: document.getElementById('age_obs').value,
+    status: 'AGENDADO'
+  };
+
+  if (!dados.dataAgendamento) {
+    avisar('Informe a data.');
+    return;
+  }
+
+  await apiPost('criarAgendamento', dados);
+
+  avisar('Agendamento salvo.');
+
+  fecharModal();
+
+  setTimeout(function() {
+    carregarAgendaTela();
+    carregarDashboard();
+  }, 2500);
+}
+
+
+async function alterarStatusAgendaTela(idAgenda, status) {
+  await apiPost('atualizarStatusAgenda', {
+    idAgenda: idAgenda,
+    status: status
+  });
+
+  avisar('Agenda atualizada.');
+
+  setTimeout(function() {
+    carregarAgendaTela();
+    carregarDashboard();
+  }, 2000);
+}
+
+
+// Carrega a agenda quando clicar no menu Agenda
+const navegarAntesAgendaTela = navegar;
+
+navegar = function(pagina) {
+  navegarAntesAgendaTela(pagina);
+
+  if (pagina === 'agenda') {
+    carregarAgendaTela();
+  }
+};
+  
   </script>
 
 </body>
