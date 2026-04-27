@@ -2285,39 +2285,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   console.log('Sistema carregado com sucesso 🚀');
 });   
-    let timerBusca;
+  let timerBusca;
 
 function buscarClientesTela() {
   clearTimeout(timerBusca);
 
-  timerBusca = setTimeout(() => {
+  timerBusca = setTimeout(function() {
     const termo = (document.getElementById('buscaCliente').value || '').toLowerCase();
 
-    const filtrados = appState.clientes.filter(c =>
-      [
+    const filtrados = appState.clientes.filter(function(c) {
+      return [
         c.nome,
         c.cpf,
         c.beneficioPrincipal,
         c.statusProcesso,
         c.responsavel
-      ].join(' ').toLowerCase().includes(termo)
-    );
+      ].join(' ').toLowerCase().includes(termo);
+    });
 
     renderizarClientes(filtrados);
   }, 300);
-}async function abrirFichaCliente(cpf) {
-  abrirModal('Carregando...', '<p>Carregando dados...</p>');
-
-  const resp = await apiGet('obterFichaCliente', { cpf });
-
-  if (!resp.ok) {
-    avisar('Erro');
-    return;
-  }
-
-  // depois substitui conteúdo
 }
-    function salvarCache(nome, dados) {
+
+function salvarCache(nome, dados) {
   localStorage.setItem(nome, JSON.stringify(dados));
 }
 
@@ -2325,39 +2315,13 @@ function carregarCache(nome) {
   const d = localStorage.getItem(nome);
   return d ? JSON.parse(d) : null;
 }
-    async function carregarClientes() {
-  const cache = carregarCache('clientes');
 
-  if (cache) {
-    appState.clientes = cache;
-    renderizarClientes(cache);
-  }
-
-  const resp = await apiGet('listarClientes');
-
-  if (resp.ok) {
-    appState.clientes = resp.clientes;
-    salvarCache('clientes', resp.clientes);
-    renderizarClientes(resp.clientes);
-  }
-}
-    <tr ondblclick="abrirFichaCliente('${escAttr(c.cpf)}')">
-      .btn:hover {
-  opacity: 0.85;
-  transform: scale(1.03);
-}
-    document.addEventListener('DOMContentLoaded', function() {
-  carregarDashboard();
-  carregarClientes();
-});
-    document.addEventListener('keydown', function(e) {
-  if (e.ctrlKey && e.key === 'n') {
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
     abrirModalNovoCliente();
   }
-});
-    document.getElementById('fin_valor').addEventListener('blur', function() {
-  this.value = moeda(this.value.replace(',', '.'));
-});
+}); 
   </script>
 
 </body>
