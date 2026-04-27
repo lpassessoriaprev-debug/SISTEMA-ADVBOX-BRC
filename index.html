@@ -2276,6 +2276,75 @@ document.addEventListener('keydown', function(e) {
     abrirModalNovoCliente();
   }
 }); 
+// =====================================================
+// PROCESSOS — BLOCO 1
+// LISTAR PROCESSOS NA TELA
+// =====================================================
+
+async function carregarProcessosTela() {
+  const area = document.getElementById('areaProcessos');
+  if (!area) return;
+
+  area.innerHTML = '<p style="color:var(--subtext);">Carregando processos...</p>';
+
+  try {
+    const resp = await apiGet('listarProcessos');
+
+    if (!resp.ok) {
+      area.innerHTML = '<p>Erro ao carregar processos.</p>';
+      return;
+    }
+
+    const processos = resp.processos || [];
+
+    if (processos.length === 0) {
+      area.innerHTML = '<p style="color:var(--subtext);">Nenhum processo cadastrado ainda.</p>';
+      return;
+    }
+
+    area.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>CPF</th>
+            <th>Benefício</th>
+            <th>Fase</th>
+            <th>Etapa</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${processos.map(p => `
+            <tr>
+              <td>${esc(p.Nome || '')}</td>
+              <td>${esc(p.CPF || '')}</td>
+              <td>${esc(p.Beneficio || '')}</td>
+              <td>${esc(p.Fase || '')}</td>
+              <td>${esc(p.Etapa || '')}</td>
+              <td>${esc(p.Status || '')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+  } catch (e) {
+    area.innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
+
+
+// Conecta a aba Processos à listagem
+const navegarOriginalProcessos = navegar;
+
+navegar = function(pagina) {
+  navegarOriginalProcessos(pagina);
+
+  if (pagina === 'processos') {
+    carregarProcessosTela();
+  }
+};
     
   </script>
 
