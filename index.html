@@ -3251,6 +3251,300 @@ async function carregarAgendaTela() {
     area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
   }
 }
+  // =====================================================
+// AGENDA — BLOCO 4
+// FILTROS + DESTAQUE DE PRAZOS
+// =====================================================
+
+let agendaFiltroCliente = '';
+let agendaFiltroStatus = '';
+let agendaFiltroDataInicio = '';
+let agendaFiltroDataFim = '';
+
+function dataBRParaDate(dataBR) {
+  if (!dataBR) return null;
+
+  const partes = String(dataBR).split('/');
+  if (partes.length !== 3) return null;
+
+  return new Date(
+    Number(partes[2]),
+    Number(partes[1]) - 1,
+    Number(partes[0])
+  );
+}
+
+function hojeSemHora() {
+  const h = new Date();
+  return new Date(h.getFullYear(), h.getMonth(), h.getDate());
+}
+
+function classificarPrazoVisual(dataBR, status) {
+  status = String(status || '').toUpperCase();
+
+  if (status === 'CONCLUIDO' || status === 'CANCELADO' || status === 'REAGENDADO') {
+    return {
+      texto: 'Finalizado',
+      cor: '#6b7280'
+    };
+  }
+
+  const d = dataBRParaDate(dataBR);
+  if (!d) {
+    return {
+      texto: 'Sem data',
+      cor: '#6b7280'
+    };
+  }
+
+  const hoje = hojeSemHora();
+
+  if (d < hoje) {
+    return {
+      texto: 'Vencido',
+      cor: '#ef4444'
+    };
+  }
+
+  if (d.getTime() === hoje.getTime()) {
+    return {
+      texto: 'Hoje',
+      cor: '#f59e0b'
+    };
+  }
+
+  return {
+    texto: 'Futuro',
+    cor: '#22c55e'
+  };
+}
+
+function atualizarFiltrosAgenda() {
+  agendaFiltroCliente = document.getElementById('filtroAgendaCliente')?.value || '';
+  agendaFiltroStatus = document.getElementById('filtroAgendaStatus')?.value || '';
+  agendaFiltroDataInicio = document.getElementById('filtroAgendaInicio')?.value || '';
+  agendaFiltroDataFim = document.getElementById('filtroAgendaFim')?.value || '';
+
+  carregarAgendaTela();
+}
+
+function limparFiltrosAgenda() {
+  agendaFiltroCliente = '';
+  agendaFiltroStatus = '';
+  agendaFiltroDataInicio = '';
+  agendaFiltroDataFim = '';
+
+  carregarAgendaTela();
+}
+
+
+// =====================================================
+// SUBSTITUI A VISUALIZAÇÃO DA AGENDA COM FILTROS
+// =====================================================
+
+async function carregarAgendaTela() {
+  const area = document.getElementById('areaAgenda');
+  if (!area) return;
+
+  area.innerHTML = '<p style="color:var(--subtext);">Carregando agenda...</p>';
+
+  try {
+    const resp = await apiGet('listarAgenda');
+    let listaOriginal = resp.agenda || [];
+
+    listaOriginal = listaOriginal.filter(a => String(a.Status || '').toUpperCase() !== 'EXCLUIDO');
+
+    let lista = [...listaOriginal];
+
+    if (agendaFiltroTipo !== 'TODAS') {
+      lista = lista.filter(a => classificarTipoAgenda(a) === agendaFiltroTipo);
+    }
+
+    if (agendaFiltroCliente) {
+      const termo = agendaFiltroCliente.toLowerCase();
+      lista = lista.filter(a => {
+        return [
+          a.Nome,
+          a.CPF
+        ].join(' ').toLowerCase().includes(termo);
+      });
+    }
+
+    if (agendaFiltroStatus) {
+      lista = lista.filter(a => String(a.Status || '').toUpperCase() === agendaFiltroStatus);
+    }
+
+    if (agendaFiltroDataInicio) {
+      const inicio = dataBRParaDate(agendaFiltroDataInicio);
+      if (inicio) {
+        lista = lista.filter(a => {
+          const d = dataBRParaDate(a.DataAgendamento);
+          return d && d >= inicio;
+        });
+      }
+    }
+
+    if (agendaFiltroDataFim) {
+      const fim = dataBRParaDate(agendaFiltroDataFim);
+      if (fim) {
+        lista = lista.filter(a => {
+          const d = dataBRParaDate(a.DataAgendamento);
+          return d && d <= fim;
+        });
+      }
+    }
+
+    const contadores = {
+      TODAS: listaOriginal.length,
+      TAREFAS: listaOriginal.filter(a => classificarTipoAgenda(a) === 'TAREFAS').length,
+      PRAZOS: listaOriginal.filter(a => classificarTipoAgenda(a) === 'PRAZOS').length,
+      CONSULTAS: listaOriginal.filter(a => classificarTipoAgenda(a) === 'CONSULTAS').length,
+      PERICIAS: listaOriginal.filter(a => classificarTipoAgenda(a) === 'PERICIAS').length
+    };
+
+    lista.sort((a, b) => {
+      const da = dataBRParaDate(a.DataAgendamento);
+      const db = dataBRParaDate(b.DataAgendamento);
+
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+
+      return da - db;
+    });
+
+    area.innerHTML = `
+      <div class="card" style="margin-bottom:15px;">
+        <h3>Filtros da agenda</h3>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn ${agendaFiltroTipo === 'TODAS' ? 'green' : ''}" onclick="definirFiltroAgenda('TODAS')">
+            Todas (${contadores.TODAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'TAREFAS' ? 'green' : ''}" onclick="definirFiltroAgenda('TAREFAS')">
+            🟦 Tarefas (${contadores.TAREFAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'PRAZOS' ? 'green' : ''}" onclick="definirFiltroAgenda('PRAZOS')">
+            🟨 Prazos (${contadores.PRAZOS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'CONSULTAS' ? 'green' : ''}" onclick="definirFiltroAgenda('CONSULTAS')">
+            🟩 Consultas (${contadores.CONSULTAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'PERICIAS' ? 'green' : ''}" onclick="definirFiltroAgenda('PERICIAS')">
+            🟥 Perícias (${contadores.PERICIAS})
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:15px;">
+          <div>
+            <label>Cliente / CPF</label>
+            <input id="filtroAgendaCliente" value="${escAttr(agendaFiltroCliente)}" placeholder="Buscar cliente">
+          </div>
+
+          <div>
+            <label>Status</label>
+            <select id="filtroAgendaStatus">
+              <option value="">Todos</option>
+              <option value="PENDENTE" ${agendaFiltroStatus === 'PENDENTE' ? 'selected' : ''}>Pendente</option>
+              <option value="CONCLUIDO" ${agendaFiltroStatus === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
+              <option value="REAGENDADO" ${agendaFiltroStatus === 'REAGENDADO' ? 'selected' : ''}>Reagendado</option>
+              <option value="CANCELADO" ${agendaFiltroStatus === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Data inicial</label>
+            <input id="filtroAgendaInicio" value="${escAttr(agendaFiltroDataInicio)}" placeholder="DD/MM/AAAA">
+          </div>
+
+          <div>
+            <label>Data final</label>
+            <input id="filtroAgendaFim" value="${escAttr(agendaFiltroDataFim)}" placeholder="DD/MM/AAAA">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button class="btn green" onclick="atualizarFiltrosAgenda()">Aplicar filtros</button>
+          <button class="btn" onclick="limparFiltrosAgenda()">Limpar filtros</button>
+        </div>
+      </div>
+
+      ${lista.length === 0 ? `
+        <div class="card">
+          <p style="color:var(--subtext);">Nenhum item encontrado com os filtros aplicados.</p>
+        </div>
+      ` : ''}
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px;">
+        ${lista.map(a => {
+          const categoria = classificarTipoAgenda(a);
+          const corCategoria = corTipoAgenda(categoria);
+          const status = String(a.Status || '').toUpperCase();
+          const prazo = classificarPrazoVisual(a.DataAgendamento, status);
+
+          return `
+            <div class="card" style="
+              border-left:5px solid ${corCategoria};
+              opacity:${status === 'CONCLUIDO' ? '0.65' : '1'};
+              box-shadow:0 0 0 1px ${prazo.cor}33;
+            ">
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <div>
+                  <h3 style="color:${corCategoria};">${esc(categoria)}</h3>
+                  <p style="font-size:16px;"><b>${esc(a.Tipo || '')}</b></p>
+                </div>
+
+                <div style="text-align:right;">
+                  <div style="
+                    display:inline-block;
+                    padding:4px 8px;
+                    border-radius:999px;
+                    background:${prazo.cor}22;
+                    color:${prazo.cor};
+                    font-size:12px;
+                    font-weight:bold;
+                    margin-bottom:5px;
+                  ">
+                    ${prazo.texto}
+                  </div>
+                  <div style="font-size:12px; color:var(--subtext);">
+                    ${esc(a.Status || '')}
+                  </div>
+                </div>
+              </div>
+
+              <p><b>Cliente:</b> ${esc(a.Nome || '')}</p>
+              <p><b>CPF:</b> ${esc(a.CPF || '')}</p>
+              <p><b>Data:</b> ${esc(a.DataAgendamento || '')}</p>
+              <p><b>Hora:</b> ${esc(a.Hora || '')}</p>
+              <p><b>Local:</b> ${esc(a.ClinicaLocal || '')}</p>
+              <p><b>Especialidade/Responsável:</b> ${esc(a.Especialidade || '')}</p>
+
+              ${a.Observacao ? `
+                <p style="margin-top:8px; color:var(--subtext); white-space:pre-wrap;">
+                  ${esc(a.Observacao)}
+                </p>
+              ` : ''}
+
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:12px;">
+                <button class="btn green" onclick="concluirItemAgenda('${escAttr(a.IDAgenda)}')">✅ Concluído</button>
+                <button class="btn" onclick="abrirReagendamentoAgenda('${escAttr(a.IDAgenda)}')">🔁 Reagendar</button>
+                <button class="btn red" onclick="excluirItemAgenda('${escAttr(a.IDAgenda)}')">🗑️ Excluir</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+  } catch (e) {
+    area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
+  }
+}
   
   </script>
 
