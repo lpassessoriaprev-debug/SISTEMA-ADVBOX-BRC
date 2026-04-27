@@ -2501,7 +2501,12 @@ async function salvarProcessoNovo() {
 // MOVER PROCESSO ENTRE FASES
 // =====================================================
 
-async function moverProcesso(idProcesso, faseAtual) {
+// =====================================================
+// PROCESSOS — BLOCO 4 (VERSÃO COM CLIQUE)
+// =====================================================
+
+function moverProcesso(idProcesso, faseAtual) {
+
   const fases = [
     'Negociação',
     'Consultoria',
@@ -2513,33 +2518,49 @@ async function moverProcesso(idProcesso, faseAtual) {
     'Arquivamento'
   ];
 
-  const novaFase = prompt(
-    'Para qual fase deseja mover este processo?\n\n' + fases.join('\n'),
-    faseAtual || 'Administrativo'
-  );
+  const html = `
+    <p>Selecione a nova fase:</p>
 
-  if (!novaFase) return;
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${fases.map(f => `
+        <button class="btn" onclick="confirmarMoverProcesso('${idProcesso}','${f}')">
+          ${f}
+        </button>
+      `).join('')}
+    </div>
+  `;
 
-  if (!fases.includes(novaFase)) {
-    avisar('Fase inválida. Digite exatamente uma das opções.');
-    return;
-  }
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+  `;
 
-  const novaEtapa = prompt('Informe a nova etapa do processo:', '');
+  abrirModal('Mover processo', html, rodape);
+}
+
+
+// =====================================================
+// CONFIRMAR MOVIMENTAÇÃO
+// =====================================================
+
+async function confirmarMoverProcesso(idProcesso, novaFase) {
+
+  const novaEtapa = prompt('Informe a nova etapa:', '') || 'Atualizado';
 
   await apiPost('atualizarProcesso', {
     idProcesso: idProcesso,
     fase: novaFase,
-    etapa: novaEtapa || 'Atualizado',
+    etapa: novaEtapa,
     status: 'ATIVO'
   });
 
   avisar('Processo movido.');
 
+  fecharModal();
+
   setTimeout(function() {
     carregarProcessosTela();
     carregarDashboard();
-  }, 2500);
+  }, 2000);
 }
  
   </script>
