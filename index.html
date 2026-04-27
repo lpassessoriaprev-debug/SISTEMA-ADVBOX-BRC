@@ -2730,6 +2730,133 @@ navegar = function(pagina) {
     carregarAgendaTela();
   }
 };
+  // =====================================================
+// AGENDA — BLOCO 1
+// VISUAL POR CATEGORIAS
+// =====================================================
+
+let agendaFiltroTipo = 'TODAS';
+
+function definirFiltroAgenda(tipo) {
+  agendaFiltroTipo = tipo;
+  carregarAgendaTela();
+}
+
+function classificarTipoAgenda(item) {
+  const tipo = String(item.Tipo || '').toUpperCase();
+
+  if (tipo.includes('TAREFA')) return 'TAREFAS';
+  if (tipo.includes('PRAZO')) return 'PRAZOS';
+  if (tipo.includes('CONSULTA')) return 'CONSULTAS';
+  if (tipo.includes('PERÍCIA') || tipo.includes('PERICIA')) return 'PERICIAS';
+
+  return 'TAREFAS';
+}
+
+function corTipoAgenda(tipo) {
+  if (tipo === 'TAREFAS') return '#2563eb';
+  if (tipo === 'PRAZOS') return '#f59e0b';
+  if (tipo === 'CONSULTAS') return '#22c55e';
+  if (tipo === 'PERICIAS') return '#ef4444';
+  return '#6b7280';
+}
+
+async function carregarAgendaTela() {
+  const area = document.getElementById('areaAgenda');
+  if (!area) return;
+
+  area.innerHTML = '<p style="color:var(--subtext);">Carregando agenda...</p>';
+
+  try {
+    const resp = await apiGet('listarAgenda');
+    let lista = resp.agenda || [];
+
+    lista = lista.filter(a => String(a.Status || '').toUpperCase() !== 'EXCLUIDO');
+
+    if (agendaFiltroTipo !== 'TODAS') {
+      lista = lista.filter(a => classificarTipoAgenda(a) === agendaFiltroTipo);
+    }
+
+    const contadores = {
+      TODAS: (resp.agenda || []).filter(a => String(a.Status || '').toUpperCase() !== 'EXCLUIDO').length,
+      TAREFAS: (resp.agenda || []).filter(a => classificarTipoAgenda(a) === 'TAREFAS' && String(a.Status || '').toUpperCase() !== 'EXCLUIDO').length,
+      PRAZOS: (resp.agenda || []).filter(a => classificarTipoAgenda(a) === 'PRAZOS' && String(a.Status || '').toUpperCase() !== 'EXCLUIDO').length,
+      CONSULTAS: (resp.agenda || []).filter(a => classificarTipoAgenda(a) === 'CONSULTAS' && String(a.Status || '').toUpperCase() !== 'EXCLUIDO').length,
+      PERICIAS: (resp.agenda || []).filter(a => classificarTipoAgenda(a) === 'PERICIAS' && String(a.Status || '').toUpperCase() !== 'EXCLUIDO').length
+    };
+
+    area.innerHTML = `
+      <div class="card" style="margin-bottom:15px;">
+        <h3>Filtros da agenda</h3>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn ${agendaFiltroTipo === 'TODAS' ? 'green' : ''}" onclick="definirFiltroAgenda('TODAS')">
+            Todas (${contadores.TODAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'TAREFAS' ? 'green' : ''}" onclick="definirFiltroAgenda('TAREFAS')">
+            🟦 Tarefas (${contadores.TAREFAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'PRAZOS' ? 'green' : ''}" onclick="definirFiltroAgenda('PRAZOS')">
+            🟨 Prazos (${contadores.PRAZOS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'CONSULTAS' ? 'green' : ''}" onclick="definirFiltroAgenda('CONSULTAS')">
+            🟩 Consultas (${contadores.CONSULTAS})
+          </button>
+
+          <button class="btn ${agendaFiltroTipo === 'PERICIAS' ? 'green' : ''}" onclick="definirFiltroAgenda('PERICIAS')">
+            🟥 Perícias (${contadores.PERICIAS})
+          </button>
+        </div>
+      </div>
+
+      ${lista.length === 0 ? `
+        <div class="card">
+          <p style="color:var(--subtext);">Nenhum item encontrado nesta categoria.</p>
+        </div>
+      ` : ''}
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px;">
+        ${lista.map(a => {
+          const categoria = classificarTipoAgenda(a);
+          const cor = corTipoAgenda(categoria);
+
+          return `
+            <div class="card" style="border-left:5px solid ${cor};">
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <div>
+                  <h3 style="color:${cor};">${esc(categoria)}</h3>
+                  <p style="font-size:16px;"><b>${esc(a.Tipo || '')}</b></p>
+                </div>
+                <div style="font-size:12px; color:var(--subtext);">
+                  ${esc(a.Status || '')}
+                </div>
+              </div>
+
+              <p><b>Cliente:</b> ${esc(a.Nome || '')}</p>
+              <p><b>CPF:</b> ${esc(a.CPF || '')}</p>
+              <p><b>Data:</b> ${esc(a.DataAgendamento || '')}</p>
+              <p><b>Hora:</b> ${esc(a.Hora || '')}</p>
+              <p><b>Local:</b> ${esc(a.ClinicaLocal || '')}</p>
+              <p><b>Especialidade:</b> ${esc(a.Especialidade || '')}</p>
+
+              ${a.Observacao ? `
+                <p style="margin-top:8px; color:var(--subtext); white-space:pre-wrap;">
+                  ${esc(a.Observacao)}
+                </p>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+  } catch (e) {
+    area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
+  }
+}
   
   </script>
 
