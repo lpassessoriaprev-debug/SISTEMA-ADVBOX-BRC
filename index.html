@@ -793,7 +793,361 @@
       }).join('');
     }
 
+// =====================================================
+// BLOCO 2A — FORMULÁRIO REAL DE CADASTRO DE CLIENTE
+// =====================================================
 
+function abrirModalNovoCliente() {
+  const html = `
+    <div class="cards" style="grid-template-columns: 1fr 1fr;">
+      <div class="card">
+        <h3>Dados pessoais</h3>
+
+        <label>Nome completo *</label>
+        <input id="cli_nome" placeholder="Nome completo">
+
+        <label>CPF *</label>
+        <input id="cli_cpf" placeholder="000.000.000-00" onblur="this.value=formatarCPF(this.value)">
+
+        <label>Data de nascimento</label>
+        <input id="cli_dataNascimento" placeholder="DD/MM/AAAA">
+
+        <label>WhatsApp</label>
+        <input id="cli_whatsapp" placeholder="(65) 99999-9999" onblur="this.value=formatarTelefone(this.value)">
+
+        <label>Nacionalidade</label>
+        <input id="cli_nacionalidade" value="Brasileira">
+
+        <label>Estado civil</label>
+        <select id="cli_estadoCivil">
+          <option value="">Selecione</option>
+          <option>Solteiro(a)</option>
+          <option>Casado(a)</option>
+          <option>Divorciado(a)</option>
+          <option>Viúvo(a)</option>
+          <option>União Estável</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <h3>Endereço e acesso GOV</h3>
+
+        <label>Endereço completo</label>
+        <textarea id="cli_endereco" placeholder="Rua, número, bairro, cidade..."></textarea>
+
+        <label>UF</label>
+        <input id="cli_uf" value="MT">
+
+        <label>Status da senha GOV</label>
+        <select id="cli_statusSenhaGov" onchange="controlarCampoSenhaGov()">
+          <option value="SOLICITAR SENHA">Solicitar senha</option>
+          <option value="SENHA INFORMADA">Senha informada</option>
+          <option value="NÃO INFORMADA">Não informada</option>
+        </select>
+
+        <div id="boxSenhaGov" style="display:none;">
+          <label>Senha GOV / Meu INSS</label>
+          <input id="cli_senhaGov" placeholder="Senha fornecida pelo cliente">
+        </div>
+
+        <label>Origem do cliente</label>
+        <input id="cli_origemCliente" placeholder="Indicação, Instagram, retorno...">
+
+        <label>Responsável</label>
+        <select id="cli_responsavel">
+          <option>PATRICIA</option>
+          <option>BRUNO</option>
+          <option>LORRAYNE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:15px;">
+      <h3>Representante legal</h3>
+
+      <label>Possui representante legal?</label>
+      <select id="cli_representanteLegal" onchange="controlarRepresentanteLegal()">
+        <option value="Não">Não</option>
+        <option value="Sim">Sim</option>
+      </select>
+
+      <div id="boxRepresentante" style="display:none; margin-top:10px;">
+        <div class="cards" style="grid-template-columns: 1fr 1fr;">
+          <div>
+            <label>Nome do representante</label>
+            <input id="rep_nome" autocomplete="off">
+          </div>
+          <div>
+            <label>CPF do representante</label>
+            <input id="rep_cpf" autocomplete="off" onblur="this.value=formatarCPF(this.value)">
+          </div>
+          <div>
+            <label>RG do representante</label>
+            <input id="rep_rg" autocomplete="off">
+          </div>
+          <div>
+            <label>Parentesco</label>
+            <input id="rep_parentesco" autocomplete="off" placeholder="Mãe, pai, curador...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:15px;">
+      <h3>Benefícios</h3>
+
+      <div id="areaBeneficios"></div>
+
+      <button class="btn green" type="button" onclick="adicionarBlocoBeneficio()">+ Adicionar benefício</button>
+    </div>
+
+    <div class="card" style="margin-top:15px;">
+      <h3>Status e observações</h3>
+
+      <label>Status do processo</label>
+      <select id="cli_statusProcesso">
+        <option>Triagem / Análise</option>
+        <option>Contrato Enviado</option>
+        <option>Contrato Assinado</option>
+        <option>Documentos Pendentes</option>
+        <option>Documentos Completos</option>
+        <option>Requerimento Administrativo</option>
+        <option>Aguardando Análise INSS</option>
+        <option>Exigência INSS</option>
+        <option>Aguardando Perícia</option>
+        <option>Benefício Concedido</option>
+        <option>Benefício Indeferido</option>
+        <option>Recurso Administrativo</option>
+        <option>Judicializado</option>
+        <option>Sentença</option>
+        <option>Cumprimento de Sentença</option>
+        <option>Arquivado</option>
+      </select>
+
+      <label>Observações gerais</label>
+      <textarea id="cli_observacoesGerais" placeholder="Resumo do caso, detalhes importantes, estratégia inicial..."></textarea>
+    </div>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarClienteNovo()">Salvar cliente</button>
+  `;
+
+  abrirModal('Novo cliente', html, rodape);
+
+  document.getElementById('cli_responsavel').value = usuarioAtual();
+  adicionarBlocoBeneficio();
+}
+
+
+function controlarCampoSenhaGov() {
+  const status = document.getElementById('cli_statusSenhaGov').value;
+  const box = document.getElementById('boxSenhaGov');
+  box.style.display = status === 'SENHA INFORMADA' ? 'block' : 'none';
+}
+
+
+function controlarRepresentanteLegal() {
+  const val = document.getElementById('cli_representanteLegal').value;
+  document.getElementById('boxRepresentante').style.display = val === 'Sim' ? 'block' : 'none';
+}
+
+
+function adicionarBlocoBeneficio(dados = {}) {
+  const area = document.getElementById('areaBeneficios');
+  const idx = area.children.length + 1;
+
+  const id = 'ben_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+  const html = document.createElement('div');
+  html.className = 'card';
+  html.style.marginTop = '10px';
+  html.setAttribute('data-beneficio-box', id);
+
+  html.innerHTML = `
+    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+      <h3>Benefício ${idx}</h3>
+      <button class="btn red" type="button" onclick="removerBlocoBeneficio('${id}')">Remover</button>
+    </div>
+
+    <label>Tipo de benefício *</label>
+    <select class="ben_tipo" onchange="atualizarCamposBeneficio(this)">
+      <option value="">Selecione</option>
+      <option>Benefício por Incapacidade</option>
+      <option>Auxílio-doença</option>
+      <option>Salário-Maternidade</option>
+      <option>Aposentadoria</option>
+      <option>BPC</option>
+      <option>Pensão por Morte</option>
+      <option>Auxílio-Acidente</option>
+      <option>Outros</option>
+    </select>
+
+    <label>
+      <input type="checkbox" class="ben_principal" style="width:auto; margin-right:6px;">
+      Benefício principal
+    </label>
+
+    <div class="campos-beneficio"></div>
+  `;
+
+  area.appendChild(html);
+
+  if (dados.tipo) {
+    html.querySelector('.ben_tipo').value = dados.tipo;
+    atualizarCamposBeneficio(html.querySelector('.ben_tipo'));
+  }
+}
+
+
+function removerBlocoBeneficio(id) {
+  const el = document.querySelector('[data-beneficio-box="' + id + '"]');
+  if (el) el.remove();
+}
+
+
+function atualizarCamposBeneficio(select) {
+  const box = select.closest('[data-beneficio-box]');
+  const area = box.querySelector('.campos-beneficio');
+  const tipo = select.value;
+
+  let html = '';
+
+  if (tipo === 'Benefício por Incapacidade' || tipo === 'Auxílio-doença') {
+    html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div>
+          <label>% Inicial</label>
+          <input class="hon_percentualInicial" value="30">
+        </div>
+        <div>
+          <label>Nº parcelas iniciais</label>
+          <input class="hon_parcelasIniciais" value="8">
+        </div>
+        <div>
+          <label>% manutenção</label>
+          <input class="hon_percentualManutencao" value="15">
+        </div>
+      </div>
+
+      <label>Conversão em benefício permanente?</label>
+      <select class="campo_conversaoPermanente" onchange="controlarConversaoBeneficio(this)">
+        <option>Não</option>
+        <option>Sim</option>
+      </select>
+
+      <div class="boxConversao" style="display:none;">
+        <div class="cards" style="grid-template-columns: 1fr 1fr;">
+          <div>
+            <label>% Conversão</label>
+            <input class="hon_percentualConversao" value="45">
+          </div>
+          <div>
+            <label>Parcelas pós-conversão</label>
+            <input class="hon_parcelasConversao" value="6">
+          </div>
+        </div>
+      </div>
+
+      <label>Especialidade médica</label>
+      <select class="campo_especialidade">
+        <option></option>
+        <option>Ortopédica</option>
+        <option>Psiquiátrica</option>
+        <option>Neurológica</option>
+        <option>Oncológica</option>
+        <option>Visual</option>
+        <option>Autoimune</option>
+        <option>Outra</option>
+      </select>
+
+      <label>Observação da doença</label>
+      <textarea class="campo_observacaoDoenca"></textarea>
+    `;
+  }
+
+  if (tipo === 'Salário-Maternidade') {
+    html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <label>% Total</label>
+          <input class="hon_percentualTotal" value="35">
+        </div>
+        <div>
+          <label>Nº parcelas</label>
+          <input class="hon_parcelas" value="4">
+        </div>
+      </div>
+
+      <label>Data prevista para o parto</label>
+      <input class="campo_dataPrevistaParto" placeholder="DD/MM/AAAA">
+
+      <label>Data do parto</label>
+      <input class="campo_dataParto" placeholder="DD/MM/AAAA">
+
+      <label>Recolher guia?</label>
+      <select class="campo_recolherGuia">
+        <option>Analisar</option>
+        <option>Sim</option>
+        <option>Não</option>
+      </select>
+    `;
+  }
+
+  if (tipo === 'Aposentadoria') {
+    html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <label>% Retroativo</label>
+          <input class="hon_percentualRetroativo" value="45">
+        </div>
+        <div>
+          <label>Parcelas integrais</label>
+          <input class="hon_parcelasIntegrais" value="6">
+        </div>
+      </div>
+
+      <label>Tipo de aposentadoria</label>
+      <select class="campo_tipoAposentadoria">
+        <option>Urbana</option>
+        <option>Rural</option>
+        <option>Especial</option>
+        <option>Híbrida</option>
+        <option>Professor</option>
+        <option>Pessoa com Deficiência</option>
+        <option>Outro</option>
+      </select>
+    `;
+  }
+
+  if (tipo === 'BPC' || tipo === 'Pensão por Morte' || tipo === 'Auxílio-Acidente' || tipo === 'Outros') {
+    html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <label>% Retroativo</label>
+          <input class="hon_percentualRetroativo" value="45">
+        </div>
+        <div>
+          <label>Parcelas integrais</label>
+          <input class="hon_parcelasIntegrais" value="6">
+        </div>
+      </div>
+
+      <label>Informações específicas do benefício</label>
+      <textarea class="campo_infoEspecifica" placeholder="Ex: tipo de dependente, data do óbito, CadÚnico, sequela, CAT, etc."></textarea>
+    `;
+  }
+
+  area.innerHTML = html;
+}
+
+
+function controlarConversaoBeneficio(select) {
+  const box = select.closest('[data-beneficio-box]');
+  const div = box.querySelector('.boxConversao');
+  if (div) div.style.display = select.value === 'Sim' ? 'block' : 'none';
+}
     // =====================================================
     // 14. PLACEHOLDERS PARA OS PRÓXIMOS BLOCOS
     // =====================================================
@@ -879,6 +1233,296 @@
       preencherConfiguracoes();
       carregarDashboard();
     });
+    // =====================================================
+// BLOCO 2B — SALVAR CLIENTE REAL NA PLANILHA
+// =====================================================
+
+function coletarBeneficiosFormulario() {
+  const boxes = document.querySelectorAll('[data-beneficio-box]');
+  const beneficios = [];
+
+  boxes.forEach(function(box) {
+    const tipo = box.querySelector('.ben_tipo')?.value || '';
+
+    if (!tipo) return;
+
+    const principal = box.querySelector('.ben_principal')?.checked || false;
+
+    const camposEspecificos = {};
+    const honorarios = {};
+
+    box.querySelectorAll('[class^="campo_"], [class*=" campo_"]').forEach(function(el) {
+      const nome = Array.from(el.classList).find(c => c.startsWith('campo_'));
+      if (nome) camposEspecificos[nome.replace('campo_', '')] = el.value;
+    });
+
+    box.querySelectorAll('[class^="hon_"], [class*=" hon_"]').forEach(function(el) {
+      const nome = Array.from(el.classList).find(c => c.startsWith('hon_'));
+      if (nome) honorarios[nome.replace('hon_', '')] = el.value;
+    });
+
+    beneficios.push({
+      tipo: tipo,
+      beneficioPrincipal: principal,
+      status: 'ATIVO',
+      camposEspecificos: camposEspecificos,
+      honorarios: honorarios
+    });
+  });
+
+  if (beneficios.length > 0 && !beneficios.some(b => b.beneficioPrincipal)) {
+    beneficios[0].beneficioPrincipal = true;
+  }
+
+  return beneficios;
+}
+
+
+async function salvarClienteNovo() {
+  const nome = document.getElementById('cli_nome').value.trim();
+  const cpf = document.getElementById('cli_cpf').value.trim();
+
+  if (!nome) {
+    avisar('Informe o nome do cliente.');
+    return;
+  }
+
+  if (!cpf || apenasNumeros(cpf).length !== 11) {
+    avisar('Informe um CPF válido.');
+    return;
+  }
+
+  const beneficios = coletarBeneficiosFormulario();
+
+  if (beneficios.length === 0) {
+    avisar('Informe pelo menos um benefício.');
+    return;
+  }
+
+  const dados = {
+    nome: nome,
+    cpf: cpf,
+    dataNascimento: document.getElementById('cli_dataNascimento').value.trim(),
+    whatsapp: document.getElementById('cli_whatsapp').value.trim(),
+    nacionalidade: document.getElementById('cli_nacionalidade').value.trim(),
+    estadoCivil: document.getElementById('cli_estadoCivil').value,
+    endereco: document.getElementById('cli_endereco').value.trim(),
+    uf: document.getElementById('cli_uf').value.trim(),
+    statusSenhaGov: document.getElementById('cli_statusSenhaGov').value,
+    senhaGov: document.getElementById('cli_senhaGov') ? document.getElementById('cli_senhaGov').value.trim() : '',
+    representanteLegal: document.getElementById('cli_representanteLegal').value,
+    dadosRepresentante: {
+      nome: document.getElementById('rep_nome') ? document.getElementById('rep_nome').value.trim() : '',
+      cpf: document.getElementById('rep_cpf') ? document.getElementById('rep_cpf').value.trim() : '',
+      rg: document.getElementById('rep_rg') ? document.getElementById('rep_rg').value.trim() : '',
+      parentesco: document.getElementById('rep_parentesco') ? document.getElementById('rep_parentesco').value.trim() : ''
+    },
+    beneficios: beneficios,
+    beneficioPrincipal: beneficios.find(b => b.beneficioPrincipal)?.tipo || beneficios[0].tipo,
+    statusProcesso: document.getElementById('cli_statusProcesso').value,
+    origemCliente: document.getElementById('cli_origemCliente').value.trim(),
+    observacoesGerais: document.getElementById('cli_observacoesGerais').value.trim(),
+    responsavel: document.getElementById('cli_responsavel').value || usuarioAtual()
+  };
+
+  try {
+    avisar('Salvando cliente. Aguarde alguns segundos e depois atualize a lista.');
+
+    await apiPost('salvarCliente', dados);
+
+    fecharModal();
+
+    setTimeout(function() {
+      carregarClientes();
+      carregarDashboard();
+    }, 2500);
+
+  } catch (erro) {
+    avisar('Erro ao salvar cliente: ' + erro.message);
+  }
+}
+
+
+// =====================================================
+// BLOCO 2B — FICHA BÁSICA DO CLIENTE
+// =====================================================
+
+async function abrirFichaCliente(cpf) {
+  try {
+    const resp = await apiGet('obterFichaCliente', { cpf: cpf });
+
+    if (!resp.ok) {
+      avisar(resp.mensagem || 'Cliente não encontrado.');
+      return;
+    }
+
+    const c = resp.cliente;
+    const pastas = resp.pastas || {};
+    const pdfs = resp.linksPDFs || {};
+
+    let html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr;">
+        <div class="card">
+          <h3>Dados do cliente</h3>
+          <p><b>Nome:</b> ${esc(c.nome)}</p>
+          <p><b>CPF:</b> ${esc(c.cpf)}</p>
+          <p><b>Nascimento:</b> ${esc(c.dataNascimento)}</p>
+          <p><b>WhatsApp:</b> ${esc(c.whatsapp)}</p>
+          <p><b>Endereço:</b> ${esc(c.endereco)}</p>
+          <p><b>Senha GOV:</b> ${esc(c.statusSenhaGov)}</p>
+          <p><b>Status:</b> ${esc(c.statusProcesso)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Benefícios</h3>
+          ${(c.beneficios || []).map(function(b) {
+            return `<p>• ${esc(b.tipo)} — ${esc(b.status || 'ATIVO')}</p>`;
+          }).join('') || '<p>Nenhum benefício.</p>'}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Pastas no Drive</h3>
+        ${Object.keys(pastas).map(function(k) {
+          return `<p><b>${esc(k)}:</b> <button class="btn" onclick="window.open('${escAttr(pastas[k].link)}','_blank')">Abrir pasta</button></p>`;
+        }).join('') || '<p>Nenhuma pasta encontrada.</p>'}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>PDFs</h3>
+        ${Object.keys(pdfs).map(function(k) {
+          return `<p><b>${esc(k)}:</b> <button class="btn green" onclick="window.open('${escAttr(pdfs[k].link)}','_blank')">Abrir PDF</button></p>`;
+        }).join('') || '<p>Nenhum PDF gerado ainda.</p>'}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Observações</h3>
+        <p style="white-space:pre-wrap;">${esc(c.observacoesGerais || '')}</p>
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn" onclick="gerarPDFCliente('${escAttr(c.cpf)}')">Gerar contrato/procuração</button>
+      <button class="btn green" onclick="gerarFichaPDF('${escAttr(c.cpf)}')">Gerar ficha PDF</button>
+      <button class="btn" onclick="gerarWhatsAppCliente('${escAttr(c.cpf)}')">WhatsApp dados</button>
+    `;
+
+    abrirModal('Ficha do cliente', html, rodape);
+
+  } catch (erro) {
+    avisar('Erro ao abrir ficha: ' + erro.message);
+  }
+}
+
+
+// =====================================================
+// BLOCO 2B — AÇÕES DA FICHA
+// =====================================================
+
+async function gerarPDFCliente(cpf) {
+  try {
+    await apiPost('gerarPDFContratoProcuracao', { cpf: cpf });
+    avisar('Solicitação enviada. Aguarde alguns segundos e abra a ficha novamente.');
+    setTimeout(() => abrirFichaCliente(cpf), 3000);
+  } catch (erro) {
+    avisar('Erro ao gerar PDF: ' + erro.message);
+  }
+}
+
+
+async function gerarFichaPDF(cpf) {
+  try {
+    await apiPost('gerarPDFFichaCliente', { cpf: cpf });
+    avisar('Ficha PDF solicitada. Aguarde alguns segundos.');
+  } catch (erro) {
+    avisar('Erro ao gerar ficha PDF: ' + erro.message);
+  }
+}
+
+
+async function gerarWhatsAppCliente(cpf) {
+  try {
+    const resp = await apiGet('gerarTextoWhatsAppCliente', { cpf: cpf });
+
+    if (resp.ok && resp.whatsappURL) {
+      window.open(resp.whatsappURL, '_blank');
+    } else {
+      avisar(resp.mensagem || 'Não foi possível gerar texto.');
+    }
+  } catch (erro) {
+    avisar('Erro ao gerar WhatsApp: ' + erro.message);
+  }
+}
+
+
+// =====================================================
+// BLOCO 2B — EDIÇÃO SIMPLES POR ENQUANTO
+// =====================================================
+
+async function abrirModalEditarCliente(cpf) {
+  try {
+    const resp = await apiGet('obterCliente', { cpf: cpf });
+
+    if (!resp.ok) {
+      avisar(resp.mensagem || 'Cliente não encontrado.');
+      return;
+    }
+
+    const c = resp.cliente;
+
+    abrirModalNovoCliente();
+
+    setTimeout(function() {
+      document.getElementById('cli_nome').value = c.nome || '';
+      document.getElementById('cli_cpf').value = c.cpf || '';
+      document.getElementById('cli_dataNascimento').value = c.dataNascimento || '';
+      document.getElementById('cli_whatsapp').value = c.whatsapp || '';
+      document.getElementById('cli_nacionalidade').value = c.nacionalidade || 'Brasileira';
+      document.getElementById('cli_estadoCivil').value = c.estadoCivil || '';
+      document.getElementById('cli_endereco').value = c.endereco || '';
+      document.getElementById('cli_uf').value = c.uf || 'MT';
+      document.getElementById('cli_statusSenhaGov').value = c.statusSenhaGov || 'NÃO INFORMADA';
+      controlarCampoSenhaGov();
+      if (document.getElementById('cli_senhaGov')) document.getElementById('cli_senhaGov').value = c.senhaGov || '';
+
+      document.getElementById('cli_representanteLegal').value = c.representanteLegal || 'Não';
+      controlarRepresentanteLegal();
+
+      if (c.dadosRepresentante) {
+        if (document.getElementById('rep_nome')) document.getElementById('rep_nome').value = c.dadosRepresentante.nome || '';
+        if (document.getElementById('rep_cpf')) document.getElementById('rep_cpf').value = c.dadosRepresentante.cpf || '';
+        if (document.getElementById('rep_rg')) document.getElementById('rep_rg').value = c.dadosRepresentante.rg || '';
+        if (document.getElementById('rep_parentesco')) document.getElementById('rep_parentesco').value = c.dadosRepresentante.parentesco || '';
+      }
+
+      document.getElementById('cli_statusProcesso').value = c.statusProcesso || 'Triagem / Análise';
+      document.getElementById('cli_origemCliente').value = c.origemCliente || '';
+      document.getElementById('cli_observacoesGerais').value = c.observacoesGerais || '';
+      document.getElementById('cli_responsavel').value = c.responsavel || usuarioAtual();
+
+      const area = document.getElementById('areaBeneficios');
+      area.innerHTML = '';
+
+      (c.beneficios || []).forEach(function(b) {
+        adicionarBlocoBeneficio(b);
+        const ultimo = area.lastElementChild;
+        if (ultimo) {
+          ultimo.querySelector('.ben_tipo').value = b.tipo || '';
+          ultimo.querySelector('.ben_principal').checked = !!b.beneficioPrincipal;
+          atualizarCamposBeneficio(ultimo.querySelector('.ben_tipo'));
+        }
+      });
+
+      if ((c.beneficios || []).length === 0) adicionarBlocoBeneficio();
+
+      document.getElementById('modalTitulo').innerText = 'Editar cliente';
+
+    }, 100);
+
+  } catch (erro) {
+    avisar('Erro ao editar cliente: ' + erro.message);
+  }
+}
   </script>
 
 </body>
