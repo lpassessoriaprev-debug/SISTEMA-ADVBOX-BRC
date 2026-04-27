@@ -218,7 +218,7 @@
       <button onclick="navegar('agenda')">Agenda</button>
       <button onclick="navegar('financeiro')">Financeiro</button>
       <button onclick="navegar('documentos')">Documentos</button>
-      <button onclick="navegar('config')">Configurações</button>
+      
     </div>
   </div>
 
@@ -420,25 +420,7 @@
     <!-- =====================================================
     PÁGINA: CONFIGURAÇÕES
     ===================================================== -->
-    <section id="page-config" class="page">
-      <div class="topbar">
-        <div class="title">Configurações</div>
-      </div>
-
-      <div class="card">
-        <h3>Apps Script</h3>
-        <p style="font-size: 14px; color: var(--subtext); margin-top: 8px;">
-          URL atual do backend:
-        </p>
-
-        <input id="backendUrlView" readonly>
-
-        <button class="btn green" onclick="testarConexao()">Testar conexão</button>
-        <button class="btn" onclick="inicializarSistema()" style="margin-left: 8px;">Inicializar estrutura</button>
-        <button class="btn" onclick="gerarBackup()" style="margin-left: 8px;">Gerar backup</button>
-      </div>
-    </section>
-
+    
 
     <!-- =====================================================
     MODAL GLOBAL
@@ -518,7 +500,7 @@
 
       if (pagina === 'dashboard') carregarDashboard();
       if (pagina === 'clientes') carregarClientes();
-      if (pagina === 'config') preencherConfiguracoes();
+      
     }
 
 
@@ -1178,11 +1160,7 @@ function controlarConversaoBeneficio(select) {
     // =====================================================
     // 15. CONFIGURAÇÕES
     // =====================================================
-    function preencherConfiguracoes() {
-      const el = document.getElementById('backendUrlView');
-      if (el) el.value = BACKEND_URL;
-    }
-
+    
 
     // =====================================================
     // 16. UTILITÁRIOS
