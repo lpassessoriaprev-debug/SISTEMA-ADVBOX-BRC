@@ -1166,13 +1166,40 @@ function controlarConversaoBeneficio(select) {
     // 16. UTILITÁRIOS
     // =====================================================
     function esc(valor) {
-      return String(valor ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+  if (valor instanceof Date) {
+    return formatarHora(valor);
+  }
+
+  const texto = String(valor ?? '');
+
+  // Detecta formato de data ISO (o bug da hora)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(texto)) {
+    const d = new Date(texto);
+    if (!isNaN(d)) {
+      return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     }
+  }
+
+  return texto
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+    function formatarHora(hora) {
+  if (!hora) return '';
+
+  if (typeof hora === 'string' && /^\d{1,2}:\d{2}$/.test(hora)) {
+    return hora;
+  }
+
+  const d = new Date(hora);
+  if (isNaN(d)) return String(hora || '');
+
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
 
     function escAttr(valor) {
       return esc(valor).replaceAll('\n', ' ');
@@ -2598,7 +2625,7 @@ async function carregarAgendaTela() {
           ${lista.map(a => `
             <tr>
               <td>${esc(a.DataAgendamento || '')}</td>
-              <td>${esc(a.Hora || '')}</td>
+              <td>⏰ ${formatarHora(a.Hora)}</td>
               <td>${esc(a.Nome || '')}<br><small>${esc(a.CPF || '')}</small></td>
               <td>${esc(a.Tipo || '')}</td>
               <td>${esc(a.ClinicaLocal || '')}</td>
@@ -3543,6 +3570,31 @@ async function carregarAgendaTela() {
 
   } catch (e) {
     area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
+  }
+}
+  // =====================================================
+// FORMATAÇÃO DE HORA
+// =====================================================
+
+function formatarHora(hora) {
+  if (!hora) return '';
+
+  // Se já estiver no formato HH:MM
+  if (typeof hora === 'string' && hora.includes(':') && hora.length <= 5) {
+    return hora;
+  }
+
+  try {
+    const data = new Date(hora);
+
+    if (isNaN(data)) return '';
+
+    const h = String(data.getHours()).padStart(2, '0');
+    const m = String(data.getMinutes()).padStart(2, '0');
+
+    return `${h}:${m}`;
+  } catch (e) {
+    return '';
   }
 }
   
