@@ -4860,6 +4860,164 @@ navegar = function(pagina) {
   }
 };
   
+ // =====================================================
+// FINANCEIRO — BLOCO 5 COMPLETO
+// NOMES CLAROS + VISÃO REAL DO DINHEIRO
+// =====================================================
+
+async function abrirFinanceiroCliente(cpf) {
+  abrirModal('Financeiro do cliente', '<p style="color:var(--subtext);">Carregando financeiro...</p>');
+
+  try {
+    const resp = await apiGet('listarFinanceiroCliente', { cpf: cpf });
+
+    if (!resp.ok) {
+      document.getElementById('modalConteudo').innerHTML = '<p>Erro ao carregar financeiro.</p>';
+      return;
+    }
+
+    const financeiro = resp.financeiro || {};
+    const registros = (financeiro.registros || []).filter(function(l) {
+      return String(l.StatusPagamento || '').toUpperCase() !== 'EXCLUIDO';
+    });
+
+    const totalRecebido = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return natureza.includes('ENTRADA') && status === 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const totalAReceber = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return natureza.includes('ENTRADA') && status !== 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const despesasPagas = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return (natureza.includes('SAÍDA') || natureza.includes('SAIDA')) && status === 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const despesasPendentes = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return (natureza.includes('SAÍDA') || natureza.includes('SAIDA')) && status !== 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const saldoReal = totalRecebido - despesasPagas;
+
+    const html = `
+      <div class="cards">
+        <div class="card">
+          <h3>💰 Recebido</h3>
+          <p>${moeda(totalRecebido)}</p>
+        </div>
+
+        <div class="card">
+          <h3>📥 A receber</h3>
+          <p>${moeda(totalAReceber)}</p>
+        </div>
+
+        <div class="card">
+          <h3>💸 Despesas pagas</h3>
+          <p>${moeda(despesasPagas)}</p>
+        </div>
+
+        <div class="card">
+          <h3>📤 Despesas pendentes</h3>
+          <p>${moeda(despesasPendentes)}</p>
+        </div>
+
+        <div class="card">
+          <h3>📊 Saldo real</h3>
+          <p>${moeda(saldoReal)}</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Extrato financeiro do cliente</h3>
+
+        ${registros.length === 0 ? `
+          <p style="color:var(--subtext);">Nenhum lançamento financeiro registrado.</p>
+        ` : ''}
+
+        ${registros.map(function(l) {
+          const valor = l.ValorFinal || l.ValorBruto || 0;
+          const natureza = String(l.Natureza || '').toUpperCase();
+          const status = String(l.StatusPagamento || '').toUpperCase();
+
+          const ehSaida = natureza.includes('SAÍDA') || natureza.includes('SAIDA');
+          const corStatus = status === 'PAGO' ? '#22c55e' : '#f59e0b';
+          const tituloStatus = status === 'PAGO' 
+            ? (ehSaida ? 'Despesa paga' : 'Recebido')
+            : (ehSaida ? 'Despesa pendente' : 'A receber');
+
+          return `
+            <div style="
+              border-bottom:1px solid #333;
+              padding:10px 0;
+              display:flex;
+              justify-content:space-between;
+              gap:10px;
+              align-items:flex-start;
+            ">
+              <div>
+                <b>${ehSaida ? '💸' : '💰'} ${esc(l.Categoria || 'Lançamento')}</b><br>
+
+                <span style="font-size:12px; color:var(--subtext);">
+                  ${esc(l.DataRegistro || '')} — ${esc(l.Beneficio || '')}
+                </span><br>
+
+                <span style="font-size:12px; color:var(--subtext);">
+                  ${esc(l.Natureza || '')} | ${esc(l.Observacao || '')}
+                </span>
+              </div>
+
+              <div style="text-align:right; min-width:170px;">
+                <b>${moeda(valor)}</b><br>
+
+                <span style="color:${corStatus}; font-size:12px; font-weight:bold;">
+                  ${tituloStatus}
+                </span>
+
+                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px;">
+                  <button class="btn green" onclick="marcarFinanceiroPago('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Pago
+                  </button>
+
+                  <button class="btn" onclick="marcarFinanceiroPendente('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Pendente
+                  </button>
+
+                  <button class="btn red" onclick="excluirFinanceiroTela('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn green" onclick="abrirModalFinanceiro('${escAttr(cpf)}')">
+        + Novo lançamento
+      </button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Financeiro do cliente', html, rodape);
+
+  } catch (e) {
+    document.getElementById('modalConteudo').innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
   </script>
 
 </body>
