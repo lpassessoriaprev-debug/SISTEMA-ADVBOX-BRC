@@ -768,30 +768,54 @@
     }
 
 
-    function renderizarClientes(lista) {
-      const tbody = document.getElementById('tabelaClientes');
+    // =====================================================
+// BLOCO 3B — TABELA DE CLIENTES COM AÇÕES COMPLETAS
+// =====================================================
 
-      if (!lista || lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color: var(--subtext);">Nenhum cliente encontrado.</td></tr>';
-        return;
-      }
+function renderizarClientes(lista) {
+  const tbody = document.getElementById('tabelaClientes');
 
-      tbody.innerHTML = lista.map(function(c) {
-        return `
-          <tr>
-            <td><strong>${esc(c.nome || '')}</strong></td>
-            <td>${esc(c.cpf || '')}</td>
-            <td>${esc(c.beneficioPrincipal || '')}</td>
-            <td>${esc(c.statusProcesso || '')}</td>
-            <td>${esc(c.responsavel || '')}</td>
-            <td>
-              <button class="btn" onclick="abrirFichaCliente('${escAttr(c.cpf)}')">Ficha</button>
-              <button class="btn green" onclick="abrirModalEditarCliente('${escAttr(c.cpf)}')">Editar</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
+  if (!lista || lista.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="color: var(--subtext);">
+          Nenhum cliente encontrado.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(function(c) {
+    return `
+      <tr>
+        <td><strong>${esc(c.nome || '')}</strong></td>
+        <td>${esc(c.cpf || '')}</td>
+        <td>${esc(c.beneficioPrincipal || '')}</td>
+        <td>${esc(c.statusProcesso || '')}</td>
+        <td>${esc(c.responsavel || '')}</td>
+
+        <td style="display:flex; gap:5px; flex-wrap:wrap;">
+          <button class="btn" onclick="abrirFichaCliente('${escAttr(c.cpf)}')">Ficha</button>
+
+          <button class="btn green" onclick="abrirModalEditarCliente('${escAttr(c.cpf)}')">Editar</button>
+
+          <button class="btn" onclick="abrirDocumentosCliente('${escAttr(c.cpf)}')">
+            📂 Docs
+          </button>
+
+          <button class="btn" onclick="abrirFinanceiroCliente('${escAttr(c.cpf)}')">
+            💰 Fin
+          </button>
+
+          <button class="btn" onclick="abrirAgendaCliente('${escAttr(c.cpf)}')">
+            📅 Agenda
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
 
 // =====================================================
 // BLOCO 2A — FORMULÁRIO REAL DE CADASTRO DE CLIENTE
@@ -1498,6 +1522,769 @@ async function abrirModalEditarCliente(cpf) {
     avisar('Erro ao editar cliente: ' + erro.message);
   }
 }
+  // =====================================================
+// BLOCO 3A — DOCUMENTOS + DRIVE + CHECKLIST
+// =====================================================
+
+
+// =====================================================
+// ABRIR ÁREA DE DOCUMENTOS DO CLIENTE
+// =====================================================
+
+async function abrirDocumentosCliente(cpf) {
+  try {
+    const resp = await apiGet('obterFichaCliente', { cpf });
+
+    if (!resp.ok) {
+      avisar(resp.mensagem || 'Erro ao carregar documentos.');
+      return;
+    }
+
+    const cliente = resp.cliente;
+    const documentos = resp.documentos || [];
+    const checklist = resp.checklist || [];
+    const pastas = resp.pastas || {};
+
+    let html = `
+      <div class="cards" style="grid-template-columns: 1fr 1fr;">
+        <div class="card">
+          <h3>Cliente</h3>
+          <p><b>${esc(cliente.nome)}</b></p>
+          <p>${esc(cliente.cpf)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Ações</h3>
+          <button class="btn green" onclick="abrirModalUpload('${cliente.cpf}')">+ Anexar documento</button>
+          <button class="btn" onclick="criarNovaSubpasta('${cliente.cpf}')">+ Criar subpasta</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Pastas do Drive</h3>
+        ${Object.keys(pastas).map(b =>
+          `<p><b>${b}:</b> <button class="btn" onclick="window.open('${escAttr(pastas[b].link)}')">Abrir</button></p>`
+        ).join('') || '<p>Nenhuma pasta.</p>'}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Checklist</h3>
+        ${checklist.map(item => `
+          <p>
+            ${item.ItemDocumento} 
+            - <b>${item.Status}</b>
+          </p>
+        `).join('') || '<p>Nenhum checklist.</p>'}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Documentos</h3>
+        ${documentos.map(doc => `
+          <p>
+            ${doc.NomeArquivo} (${doc.CategoriaDocumento})
+            <button class="btn" onclick="window.open('${escAttr(doc.LinkArquivo)}')">Abrir</button>
+          </p>
+        `).join('') || '<p>Nenhum documento.</p>'}
+      </div>
+    `;
+
+    abrirModal('Documentos do cliente', html);
+
+  } catch (e) {
+    avisar('Erro: ' + e.message);
+  }
+}
+
+
+// =====================================================
+// MODAL DE UPLOAD
+// =====================================================
+
+function abrirModalUpload(cpf) {
+  const html = `
+    <label>Categoria do documento</label>
+    <select id="doc_categoria">
+      <option>DOCUMENTOS MEDICOS</option>
+      <option>DOCUMENTOS PESSOAIS</option>
+      <option>COMPROVANTE DE ENDEREÇO</option>
+      <option>DOCUMENTOS DO INSS</option>
+      <option>DOCUMENTOS JUDICIAIS</option>
+      <option>OUTROS</option>
+    </select>
+
+    <label>Nome do arquivo</label>
+    <input id="doc_nome">
+
+    <label>Arquivo</label>
+    <input type="file" id="doc_arquivo">
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="enviarDocumento('${cpf}')">Enviar</button>
+  `;
+
+  abrirModal('Anexar documento', html, rodape);
+}
+
+
+// =====================================================
+// ENVIAR DOCUMENTO PARA O DRIVE
+// =====================================================
+
+function enviarDocumento(cpf) {
+  const file = document.getElementById('doc_arquivo').files[0];
+
+  if (!file) {
+    avisar('Selecione um arquivo.');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(e) {
+    const base64 = e.target.result;
+
+    const dados = {
+      cpf: cpf,
+      nomeArquivo: document.getElementById('doc_nome').value || file.name,
+      categoriaDocumento: document.getElementById('doc_categoria').value,
+      base64: base64,
+      mimeType: file.type
+    };
+
+    try {
+      await apiPost('anexarDocumentoCliente', dados);
+
+      avisar('Documento enviado.');
+      fecharModal();
+
+      setTimeout(() => abrirDocumentosCliente(cpf), 2000);
+
+    } catch (err) {
+      avisar('Erro ao enviar: ' + err.message);
+    }
+  };
+
+  reader.readAsDataURL(file);
+}
+
+
+// =====================================================
+// CRIAR NOVA SUBPASTA
+// =====================================================
+
+function criarNovaSubpasta(cpf) {
+  const nome = prompt('Nome da nova subpasta:');
+
+  if (!nome) return;
+
+  apiPost('criarSubpastaCliente', {
+    cpf: cpf,
+    nomeSubpasta: nome
+  });
+
+  avisar('Subpasta criada.');
+}
+
+
+// =====================================================
+// BOTÃO PARA ACESSAR DOCUMENTOS NA TABELA
+// =====================================================
+
+function botaoDocumentosCliente(cpf) {
+  return `<button class="btn" onclick="abrirDocumentosCliente('${escAttr(cpf)}')">Docs</button>`;
+}  
+ // =====================================================
+// BLOCO 4A — FINANCEIRO DO CLIENTE
+// =====================================================
+
+
+// =====================================================
+// ABRIR FINANCEIRO DO CLIENTE
+// =====================================================
+
+async function abrirFinanceiroCliente(cpf) {
+  try {
+    const resp = await apiGet('listarFinanceiroCliente', { cpf });
+
+    if (!resp.ok) {
+      avisar(resp.mensagem || 'Erro ao carregar financeiro.');
+      return;
+    }
+
+    const dados = resp.financeiro || {};
+    const lista = dados.registros || [];
+
+    let html = `
+      <div class="cards">
+        <div class="card">
+          <h3>Total recebido</h3>
+          <p>${moeda(dados.totalEntradas || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total pendente</h3>
+          <p>${moeda(dados.totalPendente || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total geral</h3>
+          <p>${moeda((dados.totalEntradas || 0) + (dados.totalPendente || 0))}</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Extrato</h3>
+
+        ${lista.map(l => `
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:8px 0;">
+            <div>
+              <b>${l.Categoria || ''}</b><br>
+              <span style="font-size:12px; color:gray;">${l.DataLancamento || ''}</span>
+            </div>
+
+            <div style="text-align:right;">
+              <b>${moeda(l.ValorFinal || 0)}</b><br>
+              <span style="font-size:12px;">
+                ${l.StatusPagamento || ''}
+              </span>
+            </div>
+
+            <div>
+              <button class="btn" onclick="marcarComoPago('${l.IDFinanceiro}')">✔</button>
+            </div>
+          </div>
+        `).join('') || '<p>Nenhum lançamento.</p>'}
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn" onclick="abrirModalFinanceiro('${cpf}')">+ Lançamento</button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Financeiro do cliente', html, rodape);
+
+  } catch (e) {
+    avisar('Erro: ' + e.message);
+  }
+}
+
+
+// =====================================================
+// MODAL DE LANÇAMENTO FINANCEIRO
+// =====================================================
+
+function abrirModalFinanceiro(cpf) {
+  const html = `
+    <label>Tipo</label>
+    <select id="fin_tipo">
+      <option>ENTRADA</option>
+      <option>SAÍDA</option>
+    </select>
+
+    <label>Categoria</label>
+    <input id="fin_categoria" placeholder="Honorários, custas, exame...">
+
+    <label>Valor bruto</label>
+    <input id="fin_valor">
+
+    <label>% honorário (se houver)</label>
+    <input id="fin_percentual">
+
+    <label>Desconto</label>
+    <input id="fin_desconto">
+
+    <label>Status</label>
+    <select id="fin_status">
+      <option>PENDENTE</option>
+      <option>PAGO</option>
+    </select>
+
+    <label>Observação</label>
+    <textarea id="fin_obs"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarFinanceiro('${cpf}')">Salvar</button>
+  `;
+
+  abrirModal('Novo lançamento', html, rodape);
+}
+
+
+// =====================================================
+// SALVAR LANÇAMENTO
+// =====================================================
+
+async function salvarFinanceiro(cpf) {
+  const dados = {
+    cpf: cpf,
+    natureza: document.getElementById('fin_tipo').value,
+    categoria: document.getElementById('fin_categoria').value,
+    valorBruto: document.getElementById('fin_valor').value,
+    percentualHonorario: document.getElementById('fin_percentual').value,
+    desconto: document.getElementById('fin_desconto').value,
+    statusPagamento: document.getElementById('fin_status').value,
+    observacao: document.getElementById('fin_obs').value
+  };
+
+  try {
+    await apiPost('lancarFinanceiro', dados);
+
+    avisar('Lançamento enviado.');
+
+    setTimeout(() => abrirFinanceiroCliente(cpf), 2000);
+
+  } catch (e) {
+    avisar('Erro: ' + e.message);
+  }
+}
+
+
+// =====================================================
+// MARCAR COMO PAGO
+// =====================================================
+
+async function marcarComoPago(id) {
+  try {
+    await apiPost('atualizarStatusFinanceiro', {
+      idFinanceiro: id,
+      status: 'PAGO'
+    });
+
+    avisar('Atualizado.');
+
+    setTimeout(() => carregarDashboard(), 1500);
+
+  } catch (e) {
+    avisar('Erro: ' + e.message);
+  }
+}  
+    // =====================================================
+// BLOCO 5A — AGENDA + PROVIDÊNCIAS
+// =====================================================
+
+
+// =====================================================
+// ABRIR AGENDA DO CLIENTE
+// =====================================================
+
+async function abrirAgendaCliente(cpf) {
+  try {
+    const resp = await apiGet('listarAgenda');
+
+    if (!resp.ok) {
+      avisar(resp.mensagem || 'Erro ao carregar agenda.');
+      return;
+    }
+
+    const lista = (resp.agenda || []).filter(a => a.CPF === cpf);
+
+    let html = `
+      <div class="card">
+        <h3>Agendamentos</h3>
+
+        ${lista.map(a => `
+          <div style="border-bottom:1px solid #333; padding:8px 0;">
+            <b>${a.Tipo}</b> - ${a.DataAgendamento} às ${a.Hora}<br>
+            <span style="font-size:12px;">${a.ClinicaLocal || ''}</span><br>
+            <span>Status: ${a.Status}</span>
+
+            <div style="margin-top:5px;">
+              <button class="btn" onclick="alterarStatusAgenda('${a.IDAgenda}','CONCLUIDO')">✔</button>
+              <button class="btn red" onclick="alterarStatusAgenda('${a.IDAgenda}','CANCELADO')">✖</button>
+            </div>
+          </div>
+        `).join('') || '<p>Nenhum agendamento.</p>'}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Providências</h3>
+
+        <div id="areaProvidencias"></div>
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn green" onclick="abrirModalAgenda('${cpf}')">+ Agendamento</button>
+      <button class="btn" onclick="abrirModalProvidencia('${cpf}')">+ Tarefa</button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Agenda do cliente', html, rodape);
+
+    carregarProvidenciasCliente(cpf);
+
+  } catch (e) {
+    avisar('Erro: ' + e.message);
+  }
+}
+
+
+// =====================================================
+// CARREGAR PROVIDÊNCIAS
+// =====================================================
+
+async function carregarProvidenciasCliente(cpf) {
+  try {
+    const resp = await apiGet('listarProvidencias');
+
+    if (!resp.ok) return;
+
+    const lista = (resp.providencias || []).filter(p => p.CPF === cpf);
+
+    const area = document.getElementById('areaProvidencias');
+
+    if (!area) return;
+
+    area.innerHTML = lista.map(p => `
+      <div style="border-bottom:1px solid #333; padding:8px 0;">
+        <b>${p.Providencia}</b><br>
+        <span>Prazo: ${p.DataLimite || ''}</span><br>
+        <span>Responsável: ${p.Colaborador || ''}</span><br>
+        <span>Status: ${p.Status}</span>
+
+        <div style="margin-top:5px;">
+          <button class="btn" onclick="alterarStatusProvidencia('${p.IDProvidencia}','CUMPRIDO')">✔</button>
+        </div>
+      </div>
+    `).join('') || '<p>Nenhuma tarefa.</p>';
+
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+
+// =====================================================
+// MODAL AGENDAMENTO
+// =====================================================
+
+function abrirModalAgenda(cpf) {
+  const html = `
+    <label>Tipo</label>
+    <input id="age_tipo">
+
+    <label>Data</label>
+    <input id="age_data">
+
+    <label>Hora</label>
+    <input id="age_hora">
+
+    <label>Local</label>
+    <input id="age_local">
+
+    <label>Especialidade</label>
+    <input id="age_especialidade">
+
+    <label>Observação</label>
+    <textarea id="age_obs"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarAgenda('${cpf}')">Salvar</button>
+  `;
+
+  abrirModal('Novo agendamento', html, rodape);
+}
+
+
+// =====================================================
+// SALVAR AGENDAMENTO
+// =====================================================
+
+async function salvarAgenda(cpf) {
+  const dados = {
+    cpf: cpf,
+    tipo: document.getElementById('age_tipo').value,
+    dataAgendamento: document.getElementById('age_data').value,
+    hora: document.getElementById('age_hora').value,
+    clinicaLocal: document.getElementById('age_local').value,
+    especialidade: document.getElementById('age_especialidade').value,
+    observacao: document.getElementById('age_obs').value
+  };
+
+  await apiPost('criarAgendamento', dados);
+
+  avisar('Agendamento criado.');
+
+  setTimeout(() => abrirAgendaCliente(cpf), 2000);
+}
+
+
+// =====================================================
+// ALTERAR STATUS AGENDA
+// =====================================================
+
+async function alterarStatusAgenda(id, status) {
+  await apiPost('atualizarStatusAgenda', {
+    idAgenda: id,
+    status: status
+  });
+
+  avisar('Atualizado.');
+}
+
+
+// =====================================================
+// MODAL PROVIDÊNCIA
+// =====================================================
+
+function abrirModalProvidencia(cpf) {
+  const html = `
+    <label>Tarefa</label>
+    <input id="prov_nome">
+
+    <label>Prazo</label>
+    <input id="prov_prazo">
+
+    <label>Responsável</label>
+    <select id="prov_resp">
+      <option>PATRICIA</option>
+      <option>BRUNO</option>
+      <option>LORRAYNE</option>
+    </select>
+
+    <label>Observação</label>
+    <textarea id="prov_obs"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarProvidencia('${cpf}')">Salvar</button>
+  `;
+
+  abrirModal('Nova tarefa', html, rodape);
+}
+
+
+// =====================================================
+// SALVAR PROVIDÊNCIA
+// =====================================================
+
+async function salvarProvidencia(cpf) {
+  const dados = {
+    cpf: cpf,
+    providencia: document.getElementById('prov_nome').value,
+    dataLimite: document.getElementById('prov_prazo').value,
+    colaborador: document.getElementById('prov_resp').value,
+    observacao: document.getElementById('prov_obs').value
+  };
+
+  await apiPost('criarProvidencia', dados);
+
+  avisar('Tarefa criada.');
+
+  setTimeout(() => abrirAgendaCliente(cpf), 2000);
+}
+
+
+// =====================================================
+// ALTERAR STATUS PROVIDÊNCIA
+// =====================================================
+
+async function alterarStatusProvidencia(id, status) {
+  await apiPost('atualizarStatusProvidencia', {
+    idProvidencia: id,
+    status: status
+  });
+
+  avisar('Atualizado.');
+}
+ // =====================================================
+// BLOCO 6A — FINALIZAÇÃO PROFISSIONAL
+// =====================================================
+
+
+// =====================================================
+// 1. EVITAR DUPLICIDADE DE CLIQUE (ANTI DUPLO ENVIO)
+// =====================================================
+
+function bloquearBotao(btn) {
+  btn.disabled = true;
+  btn.innerText = 'Processando...';
+}
+
+function desbloquearBotao(btn, texto = 'Salvar') {
+  btn.disabled = false;
+  btn.innerText = texto;
+}
+
+
+// =====================================================
+// 2. MELHORAR ALERTAS (UI)
+// =====================================================
+
+function avisar(msg) {
+  const el = document.createElement('div');
+
+  el.innerText = msg;
+  el.style.position = 'fixed';
+  el.style.bottom = '20px';
+  el.style.right = '20px';
+  el.style.background = '#2563eb';
+  el.style.padding = '12px 18px';
+  el.style.borderRadius = '8px';
+  el.style.color = 'white';
+  el.style.zIndex = 9999;
+
+  document.body.appendChild(el);
+
+  setTimeout(() => el.remove(), 3000);
+}
+
+
+// =====================================================
+// 3. CONFIRMAÇÕES IMPORTANTES
+// =====================================================
+
+function confirmar(msg) {
+  return confirm(msg);
+}
+
+
+// =====================================================
+// 4. AUTO REFRESH INTELIGENTE
+// =====================================================
+
+function atualizarSistemaSilencioso() {
+  if (appState.paginaAtual === 'dashboard') {
+    carregarDashboard();
+  }
+
+  if (appState.paginaAtual === 'clientes') {
+    carregarClientes();
+  }
+}
+
+// atualiza a cada 60 segundos
+setInterval(atualizarSistemaSilencioso, 60000);
+
+
+// =====================================================
+// 5. BOTÃO GLOBAL DE BACKUP
+// =====================================================
+
+function adicionarBotaoBackup() {
+  const topbar = document.querySelector('.topbar');
+
+  if (!topbar) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.innerText = '💾 Backup';
+
+  btn.onclick = async function() {
+    if (!confirmar('Deseja gerar backup da planilha?')) return;
+
+    try {
+      const resp = await apiGet('gerarBackupPlanilha');
+
+      if (resp.ok) {
+        avisar('Backup criado com sucesso.');
+        if (resp.linkBackup) window.open(resp.linkBackup);
+      } else {
+        avisar('Erro ao gerar backup.');
+      }
+    } catch (e) {
+      avisar('Erro: ' + e.message);
+    }
+  };
+
+  topbar.appendChild(btn);
+}
+
+
+// =====================================================
+// 6. VALIDAÇÃO DE CPF SIMPLES
+// =====================================================
+
+function validarCPF(cpf) {
+  const d = apenasNumeros(cpf);
+
+  if (d.length !== 11) return false;
+
+  if (/^(\d)\1+$/.test(d)) return false;
+
+  return true;
+}
+
+
+// =====================================================
+// 7. MELHORAR SALVAMENTO DE CLIENTE
+// =====================================================
+
+const salvarClienteOriginal = salvarClienteNovo;
+
+salvarClienteNovo = async function() {
+  const btn = document.querySelector('#modalRodape .btn.green');
+
+  if (btn) bloquearBotao(btn);
+
+  const cpf = document.getElementById('cli_cpf').value;
+
+  if (!validarCPF(cpf)) {
+    avisar('CPF inválido.');
+    if (btn) desbloquearBotao(btn);
+    return;
+  }
+
+  try {
+    await salvarClienteOriginal();
+  } catch (e) {
+    avisar('Erro ao salvar.');
+  }
+
+  if (btn) desbloquearBotao(btn);
+};
+
+
+// =====================================================
+// 8. DESTACAR STATUS NA TABELA
+// =====================================================
+
+function corStatus(status) {
+  status = (status || '').toUpperCase();
+
+  if (status.includes('CONCEDIDO')) return 'limegreen';
+  if (status.includes('INDEFERIDO')) return '#ef4444';
+  if (status.includes('ANDAMENTO')) return '#f59e0b';
+
+  return 'white';
+}
+
+
+// =====================================================
+// 9. MELHORAR RENDERIZAÇÃO DE CLIENTES
+// =====================================================
+
+const renderOriginal = renderizarClientes;
+
+renderizarClientes = function(lista) {
+  renderOriginal(lista);
+
+  document.querySelectorAll('#tabelaClientes tr').forEach(function(row) {
+    const statusCell = row.children[3];
+    if (!statusCell) return;
+
+    statusCell.style.color = corStatus(statusCell.innerText);
+  });
+};
+
+
+// =====================================================
+// 10. INICIALIZAÇÃO FINAL DO SISTEMA
+// =====================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+  adicionarBotaoBackup();
+
+  console.log('Sistema carregado com sucesso 🚀');
+});   
   </script>
 
 </body>
