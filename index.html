@@ -2345,7 +2345,122 @@ navegar = function(pagina) {
     carregarProcessosTela();
   }
 };
-    
+  // =====================================================
+// PROCESSOS — BLOCO 2
+// CRIAR NOVO PROCESSO
+// =====================================================
+
+async function abrirModalProcesso() {
+  if (!appState.clientes || !appState.clientes.length) {
+    await carregarClientes();
+  }
+
+  const opcoesClientes = (appState.clientes || []).map(c => `
+    <option value="${escAttr(c.cpf)}">
+      ${esc(c.nome)} — ${esc(c.cpf)}
+    </option>
+  `).join('');
+
+  const html = `
+    <label>Cliente *</label>
+    <select id="proc_cpf">
+      <option value="">Selecione o cliente</option>
+      ${opcoesClientes}
+    </select>
+
+    <label>Benefício</label>
+    <select id="proc_beneficio">
+      <option>Benefício por Incapacidade</option>
+      <option>Auxílio-doença</option>
+      <option>Salário-Maternidade</option>
+      <option>Aposentadoria</option>
+      <option>BPC</option>
+      <option>Pensão por Morte</option>
+      <option>Auxílio-Acidente</option>
+      <option>Outros</option>
+    </select>
+
+    <label>Grupo de ação</label>
+    <input id="proc_grupo" placeholder="Ex: Benefício por incapacidade">
+
+    <label>Tipo de ação</label>
+    <input id="proc_tipo" placeholder="Ex: Auxílio-doença / BPC / Aposentadoria">
+
+    <label>Fase</label>
+    <select id="proc_fase">
+      <option>Negociação</option>
+      <option>Consultoria</option>
+      <option>Administrativo</option>
+      <option>Judicial</option>
+      <option>Recursal</option>
+      <option>Execução</option>
+      <option>Financeiro</option>
+      <option>Arquivamento</option>
+    </select>
+
+    <label>Etapa</label>
+    <input id="proc_etapa" placeholder="Ex: Requerimento protocolado">
+
+    <label>Número do processo</label>
+    <input id="proc_numeroProcesso" placeholder="CNJ, se houver">
+
+    <label>Número do protocolo</label>
+    <input id="proc_numeroProtocolo" placeholder="Protocolo INSS, se houver">
+
+    <label>Vara/Juízo</label>
+    <input id="proc_varaJuizo" placeholder="Se judicializado">
+
+    <label>Situação judicial</label>
+    <input id="proc_situacaoJudicial" placeholder="Ex: Aguardando perícia">
+
+    <label>Observação</label>
+    <textarea id="proc_obs" placeholder="Anotações do processo"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarProcessoNovo()">Salvar processo</button>
+  `;
+
+  abrirModal('Novo processo', html, rodape);
+}
+
+
+async function salvarProcessoNovo() {
+  const cpf = document.getElementById('proc_cpf').value;
+
+  if (!cpf) {
+    avisar('Selecione o cliente.');
+    return;
+  }
+
+  const dados = {
+    cpf: cpf,
+    beneficio: document.getElementById('proc_beneficio').value,
+    grupoAcao: document.getElementById('proc_grupo').value,
+    tipoAcao: document.getElementById('proc_tipo').value,
+    fase: document.getElementById('proc_fase').value,
+    etapa: document.getElementById('proc_etapa').value,
+    numeroProcesso: document.getElementById('proc_numeroProcesso').value,
+    numeroProtocolo: document.getElementById('proc_numeroProtocolo').value,
+    varaJuizo: document.getElementById('proc_varaJuizo').value,
+    situacaoJudicial: document.getElementById('proc_situacaoJudicial').value,
+    status: 'ATIVO',
+    observacao: document.getElementById('proc_obs').value
+  };
+
+  await apiPost('criarProcesso', dados);
+
+  avisar('Processo salvo.');
+
+  fecharModal();
+
+  setTimeout(function() {
+    carregarProcessosTela();
+    carregarDashboard();
+  }, 2500);
+}  
+  
   </script>
 
 </body>
