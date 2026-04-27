@@ -4432,6 +4432,433 @@ async function abrirFinanceiroCliente(cpf) {
     document.getElementById('modalConteudo').innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
   }
 }
+  // =====================================================
+// FINANCEIRO — BLOCO 2
+// FORMULÁRIO DE LANÇAMENTO FINANCEIRO MELHORADO
+// =====================================================
+
+async function abrirModalFinanceiro(cpf) {
+  const resp = await apiGet('obterFichaCliente', { cpf: cpf });
+
+  if (!resp.ok) {
+    avisar('Cliente não encontrado.');
+    return;
+  }
+
+  const cliente = resp.cliente || {};
+  const beneficios = cliente.beneficios || [];
+
+  const html = `
+    <label>Benefício vinculado</label>
+    <select id="fin_beneficio">
+      <option value="">Geral</option>
+      ${beneficios.map(b => `
+        <option value="${escAttr(b.tipo)}">${esc(b.tipo)}</option>
+      `).join('')}
+    </select>
+
+    <label>Natureza</label>
+    <select id="fin_tipo">
+      <option value="ENTRADA">Entrada</option>
+      <option value="SAÍDA">Saída</option>
+    </select>
+
+    <label>Categoria</label>
+    <select id="fin_categoria">
+      <option>Honorários</option>
+      <option>Retroativo</option>
+      <option>Parcela mensal</option>
+      <option>Consulta médica</option>
+      <option>Laudo médico</option>
+      <option>Custas</option>
+      <option>Despesa administrativa</option>
+      <option>Outros</option>
+    </select>
+
+    <label>Valor bruto</label>
+    <input id="fin_valor" placeholder="Ex: 2000,00">
+
+    <label>% de honorários, se aplicável</label>
+    <input id="fin_percentual" placeholder="Ex: 30">
+
+    <label>Desconto</label>
+    <input id="fin_desconto" placeholder="Ex: 0,00">
+
+    <label>Status</label>
+    <select id="fin_status">
+      <option>PENDENTE</option>
+      <option>PAGO</option>
+    </select>
+
+    <label>Data de pagamento</label>
+    <input id="fin_dataPagamento" placeholder="DD/MM/AAAA">
+
+    <label>Observação</label>
+    <textarea id="fin_obs" placeholder="Detalhes do lançamento"></textarea>
+
+    <div class="card" style="margin-top:10px;">
+      <h3>Prévia do cálculo</h3>
+      <p id="fin_previa" style="font-size:15px; font-weight:normal; color:var(--subtext);">
+        Informe o valor para calcular.
+      </p>
+    </div>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="abrirFinanceiroCliente('${escAttr(cpf)}')">Voltar</button>
+    <button class="btn green" onclick="salvarFinanceiro('${escAttr(cpf)}')">Salvar lançamento</button>
+  `;
+
+  abrirModal('Novo lançamento financeiro', html, rodape);
+
+  setTimeout(function() {
+    ['fin_valor', 'fin_percentual', 'fin_desconto'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', atualizarPreviaFinanceiro);
+    });
+  }, 100);
+}
+
+
+function numeroFinanceiro(valor) {
+  return Number(
+    String(valor || '0')
+      .replace(/\./g, '')
+      .replace(',', '.')
+      .replace(/[^\d.-]/g, '')
+  ) || 0;
+}
+
+
+function atualizarPreviaFinanceiro() {
+  const bruto = numeroFinanceiro(document.getElementById('fin_valor')?.value);
+  const percentual = numeroFinanceiro(document.getElementById('fin_percentual')?.value);
+  const desconto = numeroFinanceiro(document.getElementById('fin_desconto')?.value);
+
+  let calculado = bruto;
+
+  if (percentual > 0) {
+    calculado = bruto * (percentual / 100);
+  }
+
+  const final = calculado - desconto;
+
+  const el = document.getElementById('fin_previa');
+  if (el) {
+    el.innerText =
+      'Valor bruto: ' + moeda(bruto) +
+      ' | Honorários calculados: ' + moeda(calculado) +
+      ' | Valor final: ' + moeda(final);
+  }
+}
+
+
+async function salvarFinanceiro(cpf) {
+  const valor = document.getElementById('fin_valor').value;
+
+  if (!valor) {
+    avisar('Informe o valor.');
+    return;
+  }
+
+  const dados = {
+    cpf: cpf,
+    beneficio: document.getElementById('fin_beneficio').value,
+    natureza: document.getElementById('fin_tipo').value,
+    categoria: document.getElementById('fin_categoria').value,
+    valorBruto: document.getElementById('fin_valor').value,
+    percentualHonorario: document.getElementById('fin_percentual').value,
+    desconto: document.getElementById('fin_desconto').value,
+    statusPagamento: document.getElementById('fin_status').value,
+    dataPagamento: document.getElementById('fin_dataPagamento').value,
+    observacao: document.getElementById('fin_obs').value
+  };
+
+  await apiPost('lancarFinanceiro', dados);
+
+  avisar('Lançamento financeiro salvo.');
+
+  setTimeout(function() {
+    abrirFinanceiroCliente(cpf);
+    carregarDashboard();
+  }, 2500);
+}
+  // =====================================================
+// FINANCEIRO — BLOCO 3
+// STATUS: PAGO / PENDENTE / EXCLUIR DA TELA
+// =====================================================
+
+async function marcarFinanceiroPago(idFinanceiro, cpf) {
+  await apiPost('atualizarStatusFinanceiro', {
+    idFinanceiro: idFinanceiro,
+    statusPagamento: 'PAGO',
+    dataPagamento: new Date().toLocaleDateString('pt-BR')
+  });
+
+  avisar('Lançamento marcado como pago.');
+
+  setTimeout(function() {
+    abrirFinanceiroCliente(cpf);
+    carregarDashboard();
+  }, 2000);
+}
+
+
+async function marcarFinanceiroPendente(idFinanceiro, cpf) {
+  await apiPost('atualizarStatusFinanceiro', {
+    idFinanceiro: idFinanceiro,
+    statusPagamento: 'PENDENTE',
+    dataPagamento: ''
+  });
+
+  avisar('Lançamento marcado como pendente.');
+
+  setTimeout(function() {
+    abrirFinanceiroCliente(cpf);
+    carregarDashboard();
+  }, 2000);
+}
+
+
+// Exclusão visual: por enquanto marca como CANCELADO para ocultar no extrato
+async function excluirFinanceiroTela(idFinanceiro, cpf) {
+  if (!confirm('Deseja ocultar este lançamento do extrato?')) return;
+
+  await apiPost('atualizarStatusFinanceiro', {
+    idFinanceiro: idFinanceiro,
+    statusPagamento: 'EXCLUIDO',
+    dataPagamento: ''
+  });
+
+  avisar('Lançamento ocultado.');
+
+  setTimeout(function() {
+    abrirFinanceiroCliente(cpf);
+    carregarDashboard();
+  }, 2000);
+}
+
+
+// =====================================================
+// SOBRESCREVE EXTRATO COM BOTÕES DE AÇÃO
+// =====================================================
+
+async function abrirFinanceiroCliente(cpf) {
+  abrirModal('Financeiro do cliente', '<p style="color:var(--subtext);">Carregando financeiro...</p>');
+
+  try {
+    const resp = await apiGet('listarFinanceiroCliente', { cpf: cpf });
+
+    if (!resp.ok) {
+      document.getElementById('modalConteudo').innerHTML = '<p>Erro ao carregar financeiro.</p>';
+      return;
+    }
+
+    const financeiro = resp.financeiro || {};
+    const registros = (financeiro.registros || []).filter(function(l) {
+      return String(l.StatusPagamento || '').toUpperCase() !== 'EXCLUIDO';
+    });
+
+    const totalEntradas = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return natureza.includes('SAÍDA') || natureza.includes('SAIDA') ? acc : acc + valor;
+    }, 0);
+
+    const totalSaidas = registros.reduce(function(acc, l) {
+      const natureza = String(l.Natureza || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return natureza.includes('SAÍDA') || natureza.includes('SAIDA') ? acc + valor : acc;
+    }, 0);
+
+    const totalPago = registros.reduce(function(acc, l) {
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return status === 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const totalPendente = registros.reduce(function(acc, l) {
+      const status = String(l.StatusPagamento || '').toUpperCase();
+      const valor = numeroFinanceiro(l.ValorFinal || l.ValorBruto || 0);
+      return status !== 'PAGO' ? acc + valor : acc;
+    }, 0);
+
+    const html = `
+      <div class="cards">
+        <div class="card">
+          <h3>Total de entradas</h3>
+          <p>${moeda(totalEntradas)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total de saídas</h3>
+          <p>${moeda(totalSaidas)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total pago</h3>
+          <p>${moeda(totalPago)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total pendente</h3>
+          <p>${moeda(totalPendente)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Saldo</h3>
+          <p>${moeda(totalEntradas - totalSaidas)}</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Extrato financeiro</h3>
+
+        ${registros.length === 0 ? `
+          <p style="color:var(--subtext);">Nenhum lançamento financeiro registrado.</p>
+        ` : ''}
+
+        ${registros.map(function(l) {
+          const valor = l.ValorFinal || l.ValorBruto || 0;
+          const status = String(l.StatusPagamento || '').toUpperCase();
+          const corStatus = status === 'PAGO' ? '#22c55e' : '#f59e0b';
+
+          return `
+            <div style="
+              border-bottom:1px solid #333;
+              padding:10px 0;
+              display:flex;
+              justify-content:space-between;
+              gap:10px;
+              align-items:flex-start;
+            ">
+              <div>
+                <b>${esc(l.Categoria || 'Lançamento')}</b><br>
+                <span style="font-size:12px; color:var(--subtext);">
+                  ${esc(l.DataRegistro || '')} — ${esc(l.Beneficio || '')}
+                </span><br>
+                <span style="font-size:12px; color:var(--subtext);">
+                  ${esc(l.Natureza || '')} | ${esc(l.Observacao || '')}
+                </span>
+              </div>
+
+              <div style="text-align:right; min-width:160px;">
+                <b>${moeda(valor)}</b><br>
+                <span style="color:${corStatus}; font-size:12px; font-weight:bold;">
+                  ${esc(l.StatusPagamento || '')}
+                </span>
+
+                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px;">
+                  <button class="btn green" onclick="marcarFinanceiroPago('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Pago
+                  </button>
+
+                  <button class="btn" onclick="marcarFinanceiroPendente('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Pendente
+                  </button>
+
+                  <button class="btn red" onclick="excluirFinanceiroTela('${escAttr(l.IDFinanceiro)}','${escAttr(cpf)}')">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    const rodape = `
+      <button class="btn green" onclick="abrirModalFinanceiro('${escAttr(cpf)}')">
+        + Novo lançamento
+      </button>
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Financeiro do cliente', html, rodape);
+
+  } catch (e) {
+    document.getElementById('modalConteudo').innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
+  // =====================================================
+// FINANCEIRO — BLOCO 4
+// RESUMO GERAL DO ESCRITÓRIO
+// =====================================================
+
+async function carregarFinanceiroGeral() {
+  const page = document.getElementById('page-financeiro');
+  if (!page) return;
+
+  try {
+    const resp = await apiGet('obterDashboard');
+
+    if (!resp.ok) {
+      avisar('Erro ao carregar financeiro geral.');
+      return;
+    }
+
+    const fin = resp.dashboard?.financeiro || {};
+
+    const cards = `
+      <div class="topbar">
+        <div class="title">Financeiro Geral</div>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3>Total de entradas</h3>
+          <p>${moeda(fin.totalEntradas || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total de saídas</h3>
+          <p>${moeda(fin.totalSaidas || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Lucro líquido</h3>
+          <p>${moeda(fin.lucroLiquido || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total pago</h3>
+          <p>${moeda(fin.totalPago || 0)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Total pendente</h3>
+          <p>${moeda(fin.totalPendente || 0)}</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <h3>Orientação</h3>
+        <p style="color:var(--subtext); font-size:14px;">
+          Para lançar valores, abra o cliente na aba Clientes e clique em 💰 Fin.
+          O financeiro geral soma todos os lançamentos cadastrados no sistema.
+        </p>
+      </div>
+    `;
+
+    page.innerHTML = cards;
+
+  } catch (e) {
+    avisar('Erro no financeiro geral: ' + e.message);
+  }
+}
+
+
+// Conecta a aba Financeiro ao resumo geral
+const navegarAntesFinanceiro = navegar;
+
+navegar = function(pagina) {
+  navegarAntesFinanceiro(pagina);
+
+  if (pagina === 'financeiro') {
+    carregarFinanceiroGeral();
+  }
+};
   
   </script>
 
