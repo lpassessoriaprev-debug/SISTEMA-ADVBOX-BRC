@@ -3742,6 +3742,138 @@ function abrirPastaDriveCliente(pastaId) {
 
   window.open('https://drive.google.com/drive/folders/' + pastaId, '_blank');
 }
+  // =====================================================
+// DOCUMENTOS — BLOCO 2
+// UPLOAD DE DOCUMENTOS PARA O DRIVE
+// =====================================================
+
+async function abrirUploadDocumento(cpf) {
+  const resp = await apiGet('obterFichaCliente', { cpf });
+
+  if (!resp.ok) {
+    avisar('Cliente não encontrado.');
+    return;
+  }
+
+  const cliente = resp.cliente || {};
+  const beneficios = cliente.beneficios || [];
+
+  const html = `
+    <label>Benefício vinculado *</label>
+    <select id="doc_beneficio">
+      ${(beneficios || []).map(b => `
+        <option value="${escAttr(b.tipo)}">${esc(b.tipo)}</option>
+      `).join('')}
+      <option value="OUTROS">OUTROS</option>
+    </select>
+
+    <label>Categoria do documento *</label>
+    <select id="doc_categoria">
+      <option>DOCUMENTOS MEDICOS</option>
+      <option>DOCUMENTOS PESSOAIS</option>
+      <option>COMPROVANTE DE ENDEREÇO</option>
+      <option>DOCUMENTOS DO INSS</option>
+      <option>DOCUMENTOS JUDICIAIS</option>
+      <option>FINANCEIRO</option>
+      <option>CONTRATO E PROCURAÇÃO</option>
+      <option>OUTROS</option>
+      <option value="NOVA">Criar nova subpasta</option>
+    </select>
+
+    <div id="boxNovaSubpasta" style="display:none;">
+      <label>Nome da nova subpasta</label>
+      <input id="doc_novaSubpasta" placeholder="Ex: DOCUMENTOS COMPLEMENTARES">
+    </div>
+
+    <label>Nome do arquivo</label>
+    <input id="doc_nomeArquivo" placeholder="Se deixar vazio, usará o nome original do arquivo">
+
+    <label>Arquivo *</label>
+    <input type="file" id="doc_arquivo">
+
+    <label>Observação</label>
+    <textarea id="doc_observacao" placeholder="Observação interna sobre este documento"></textarea>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="abrirDocumentosCliente('${escAttr(cpf)}')">Voltar</button>
+    <button class="btn green" onclick="enviarDocumentoDrive('${escAttr(cpf)}')">Enviar para o Drive</button>
+  `;
+
+  abrirModal('Anexar documento', html, rodape);
+
+  setTimeout(function() {
+    const select = document.getElementById('doc_categoria');
+    if (select) {
+      select.addEventListener('change', function() {
+        const box = document.getElementById('boxNovaSubpasta');
+        if (box) box.style.display = this.value === 'NOVA' ? 'block' : 'none';
+      });
+    }
+  }, 100);
+}
+
+
+async function enviarDocumentoDrive(cpf) {
+  const file = document.getElementById('doc_arquivo')?.files?.[0];
+
+  if (!file) {
+    avisar('Selecione um arquivo.');
+    return;
+  }
+
+  const beneficio = document.getElementById('doc_beneficio').value;
+  let categoria = document.getElementById('doc_categoria').value;
+
+  if (categoria === 'NOVA') {
+    categoria = document.getElementById('doc_novaSubpasta').value.trim();
+
+    if (!categoria) {
+      avisar('Informe o nome da nova subpasta.');
+      return;
+    }
+  }
+
+  const nomeArquivo = document.getElementById('doc_nomeArquivo').value.trim() || file.name;
+  const observacao = document.getElementById('doc_observacao').value.trim();
+
+  avisar('Enviando documento. Aguarde...');
+
+  const base64 = await arquivoParaBase64(file);
+
+  await apiPost('anexarDocumentoCliente', {
+    cpf: cpf,
+    beneficio: beneficio,
+    categoriaDocumento: categoria,
+    nomeArquivo: nomeArquivo,
+    base64: base64,
+    mimeType: file.type,
+    observacao: observacao
+  });
+
+  avisar('Documento enviado para o Drive.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 3000);
+}
+
+
+function arquivoParaBase64(file) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      resolve(e.target.result);
+    };
+
+    reader.onerror = function() {
+      reject(new Error('Erro ao ler arquivo.'));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
   
   </script>
 
