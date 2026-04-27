@@ -3874,6 +3874,433 @@ function arquivoParaBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+  // =====================================================
+// DOCUMENTOS — BLOCO 3
+// CHECKLIST DOCUMENTAL REAL
+// =====================================================
+
+async function gerarChecklistCliente(cpf, beneficio) {
+  if (!beneficio) {
+    avisar('Selecione um benefício para gerar checklist.');
+    return;
+  }
+
+  await apiPost('gerarChecklistPadrao', {
+    cpf: cpf,
+    beneficio: beneficio
+  });
+
+  avisar('Checklist gerado.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 2500);
+}
+
+
+async function atualizarItemChecklist(cpf, beneficio, itemDocumento, status) {
+  await apiPost('atualizarChecklistDocumento', {
+    cpf: cpf,
+    beneficio: beneficio,
+    itemDocumento: itemDocumento,
+    status: status
+  });
+
+  avisar('Checklist atualizado.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 2000);
+}
+
+
+// =====================================================
+// SOBRESCREVE A VISUALIZAÇÃO DE DOCUMENTOS COM CHECKLIST REAL
+// =====================================================
+
+async function abrirDocumentosCliente(cpf) {
+  abrirModal('Documentos do cliente', '<p>Carregando documentos...</p>');
+
+  try {
+    const resp = await apiGet('obterFichaCliente', { cpf });
+
+    if (!resp.ok) {
+      document.getElementById('modalConteudo').innerHTML = '<p>Erro ao carregar documentos.</p>';
+      return;
+    }
+
+    const cliente = resp.cliente || {};
+    const documentos = resp.documentos || [];
+    const checklist = resp.checklist || [];
+    const pastas = resp.pastas || {};
+    const linksPDFs = resp.linksPDFs || {};
+    const beneficios = cliente.beneficios || [];
+
+    const categorias = {
+      'DOCUMENTOS MEDICOS': [],
+      'DOCUMENTOS PESSOAIS': [],
+      'COMPROVANTE DE ENDEREÇO': [],
+      'DOCUMENTOS DO INSS': [],
+      'DOCUMENTOS JUDICIAIS': [],
+      'FINANCEIRO': [],
+      'CONTRATO E PROCURAÇÃO': [],
+      'OUTROS': []
+    };
+
+    documentos.forEach(function(doc) {
+      const cat = String(doc.CategoriaDocumento || doc.Subpasta || 'OUTROS').toUpperCase();
+
+      if (categorias[cat]) {
+        categorias[cat].push(doc);
+      } else {
+        categorias.OUTROS.push(doc);
+      }
+    });
+
+    const html = `
+      <div class="card">
+        <h3>Cliente</h3>
+        <p><b>${esc(cliente.nome || '')}</b></p>
+        <p>${esc(cliente.cpf || '')}</p>
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Pastas por benefício</h3>
+
+        ${Object.keys(pastas).length === 0 ? `
+          <p style="color:var(--subtext);">Nenhuma pasta registrada.</p>
+        ` : ''}
+
+        ${Object.keys(pastas).map(function(beneficio) {
+          return `
+            <div style="border-bottom:1px solid #333; padding:8px 0;">
+              <b>${esc(beneficio)}</b><br>
+              <button class="btn" onclick="window.open('${escAttr(pastas[beneficio].link)}','_blank')">
+                📁 Abrir pasta
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>PDFs gerados</h3>
+
+        ${Object.keys(linksPDFs).length === 0 ? `
+          <p style="color:var(--subtext);">Nenhum PDF gerado.</p>
+        ` : ''}
+
+        ${Object.keys(linksPDFs).map(function(beneficio) {
+          return `
+            <div style="border-bottom:1px solid #333; padding:8px 0;">
+              <b>${esc(beneficio)}</b><br>
+              <button class="btn green" onclick="window.open('${escAttr(linksPDFs[beneficio].link)}','_blank')">
+                📄 Abrir PDF
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="card" style="margin-top:15px;">
+        <h3>Checklist documental</h3>
+
+        <label>Gerar checklist por benefício</label>
+        <select id="check_beneficio">
+          <option value="">Selecione</option>
+          ${beneficios.map(function(b) {
+            return `<option value="${escAttr(b.tipo)}">${esc(b.tipo)}</option>`;
+          }).join('')}
+        </select>
+
+        <button class="btn green" onclick="gerarChecklistCliente('${escAttr(cpf)}', document.getElementById('check_beneficio').value)">
+          Gerar checklist
+        </button>
+
+        <div style="margin-top:15px;">
+          ${checklist.length === 0 ? `
+            <p style="color:var(--subtext);">Nenhum checklist gerado ainda.</p>
+          ` : ''}
+
+          ${checklist.map(function(item) {
+            const status = String(item.Status || '').toUpperCase();
+            const marcado = status === 'ANEXADO' || status === 'CONCLUIDO' || status === 'OK';
+
+            return `
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:8px;
+                border-bottom:1px solid #333;
+                padding:8px 0;
+              ">
+                <div>
+                  <b>${marcado ? '✅' : '⬜'} ${esc(item.ItemDocumento || '')}</b><br>
+                  <span style="font-size:12px; color:var(--subtext);">
+                    ${esc(item.Beneficio || '')} — ${esc(item.Status || '')}
+                  </span>
+                </div>
+
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  ${item.LinkDocumento ? `
+                    <button class="btn" onclick="window.open('${escAttr(item.LinkDocumento)}','_blank')">
+                      Abrir
+                    </button>
+                  ` : ''}
+
+                  <button class="btn green" onclick="atualizarItemChecklist('${escAttr(cpf)}','${escAttr(item.Beneficio || '')}','${escAttr(item.ItemDocumento || '')}','ANEXADO')">
+                    Marcar anexado
+                  </button>
+
+                  <button class="btn" onclick="atualizarItemChecklist('${escAttr(cpf)}','${escAttr(item.Beneficio || '')}','${escAttr(item.ItemDocumento || '')}','PENDENTE')">
+                    Pendente
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      ${Object.keys(categorias).map(function(cat) {
+        return `
+          <div class="card" style="margin-top:15px;">
+            <h3>${esc(cat)} (${categorias[cat].length})</h3>
+
+            ${categorias[cat].length === 0 ? `
+              <p style="color:var(--subtext);">Nenhum documento.</p>
+            ` : ''}
+
+            ${categorias[cat].map(function(doc) {
+              return `
+                <div style="border-bottom:1px solid #333; padding:8px 0;">
+                  <b>${esc(doc.NomeArquivo || 'Documento')}</b><br>
+
+                  <span style="font-size:12px; color:var(--subtext);">
+                    ${esc(doc.Beneficio || '')} — ${esc(doc.CategoriaDocumento || '')}
+                  </span>
+
+                  <div style="margin-top:6px;">
+                    <button class="btn" onclick="window.open('${escAttr(doc.LinkArquivo || '')}','_blank')">
+                      📄 Abrir
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }).join('')}
+    `;
+
+    const rodape = `
+      <button class="btn green" onclick="abrirUploadDocumento('${escAttr(cpf)}')">
+        + Anexar documento
+      </button>
+
+      <button class="btn" onclick="gerarPDFCliente('${escAttr(cpf)}')">
+        Gerar contrato/procuração
+      </button>
+
+      <button class="btn" onclick="gerarFichaPDF('${escAttr(cpf)}')">
+        Gerar ficha PDF
+      </button>
+
+      <button class="btn" onclick="fecharModal()">Fechar</button>
+    `;
+
+    abrirModal('Documentos do cliente', html, rodape);
+
+  } catch (e) {
+    document.getElementById('modalConteudo').innerHTML = '<p>Erro: ' + esc(e.message) + '</p>';
+  }
+}
+  // =====================================================
+// DOCUMENTOS — BLOCO 4
+// BOTÕES FINAIS + SUBPASTA + PDF + WHATSAPP
+// =====================================================
+
+async function criarSubpastaDocumentos(cpf) {
+  const resp = await apiGet('obterFichaCliente', { cpf });
+
+  if (!resp.ok) {
+    avisar('Cliente não encontrado.');
+    return;
+  }
+
+  const cliente = resp.cliente || {};
+  const beneficios = cliente.beneficios || [];
+
+  const html = `
+    <label>Benefício *</label>
+    <select id="sub_beneficio">
+      <option value="">Selecione</option>
+      ${beneficios.map(b => `
+        <option value="${escAttr(b.tipo)}">${esc(b.tipo)}</option>
+      `).join('')}
+    </select>
+
+    <label>Nome da nova subpasta *</label>
+    <input id="sub_nome" placeholder="Ex: EXAMES COMPLEMENTARES">
+
+    <p style="color:var(--subtext); font-size:13px;">
+      A subpasta será criada dentro da pasta do cliente referente ao benefício selecionado.
+    </p>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="abrirDocumentosCliente('${escAttr(cpf)}')">Voltar</button>
+    <button class="btn green" onclick="salvarSubpastaDocumentos('${escAttr(cpf)}')">Criar subpasta</button>
+  `;
+
+  abrirModal('Criar subpasta', html, rodape);
+}
+
+
+async function salvarSubpastaDocumentos(cpf) {
+  const beneficio = document.getElementById('sub_beneficio').value;
+  const nomeSubpasta = document.getElementById('sub_nome').value.trim();
+
+  if (!beneficio) {
+    avisar('Selecione o benefício.');
+    return;
+  }
+
+  if (!nomeSubpasta) {
+    avisar('Informe o nome da subpasta.');
+    return;
+  }
+
+  await apiPost('criarSubpastaCliente', {
+    cpf: cpf,
+    beneficio: beneficio,
+    nomeSubpasta: nomeSubpasta
+  });
+
+  avisar('Subpasta criada.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 2000);
+}
+
+
+async function gerarPDFClientePorBeneficio(cpf) {
+  const resp = await apiGet('obterFichaCliente', { cpf });
+
+  if (!resp.ok) {
+    avisar('Cliente não encontrado.');
+    return;
+  }
+
+  const cliente = resp.cliente || {};
+  const beneficios = cliente.beneficios || [];
+
+  const html = `
+    <label>Selecione o benefício para gerar contrato/procuração</label>
+    <select id="pdf_beneficio">
+      <option value="">Todos os benefícios</option>
+      ${beneficios.map(b => `
+        <option value="${escAttr(b.tipo)}">${esc(b.tipo)}</option>
+      `).join('')}
+    </select>
+
+    <p style="color:var(--subtext); font-size:13px;">
+      Se escolher "Todos os benefícios", o sistema gerará contrato/procuração para cada benefício vinculado ao cliente.
+    </p>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="abrirDocumentosCliente('${escAttr(cpf)}')">Voltar</button>
+    <button class="btn green" onclick="confirmarGerarPDFCliente('${escAttr(cpf)}')">Gerar PDF</button>
+  `;
+
+  abrirModal('Gerar contrato/procuração', html, rodape);
+}
+
+
+async function confirmarGerarPDFCliente(cpf) {
+  const beneficio = document.getElementById('pdf_beneficio').value;
+
+  await apiPost('gerarPDFContratoProcuracao', {
+    cpf: cpf,
+    beneficio: beneficio
+  });
+
+  avisar('Geração solicitada. Aguarde alguns segundos.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 4000);
+}
+
+
+async function gerarFichaPDFDocumentos(cpf) {
+  await apiPost('gerarPDFFichaCliente', {
+    cpf: cpf
+  });
+
+  avisar('Ficha PDF solicitada.');
+
+  setTimeout(function() {
+    abrirDocumentosCliente(cpf);
+  }, 3000);
+}
+
+
+async function abrirWhatsAppDadosCliente(cpf) {
+  const resp = await apiGet('gerarTextoWhatsAppCliente', { cpf: cpf });
+
+  if (resp.ok && resp.whatsappURL) {
+    window.open(resp.whatsappURL, '_blank');
+  } else {
+    avisar(resp.mensagem || 'Não foi possível gerar mensagem.');
+  }
+}
+
+
+// =====================================================
+// REFORÇO — RODAPÉ DE DOCUMENTOS COM BOTÕES COMPLETOS
+// =====================================================
+
+const abrirDocumentosClienteOriginalFinal = abrirDocumentosCliente;
+
+abrirDocumentosCliente = async function(cpf) {
+  await abrirDocumentosClienteOriginalFinal(cpf);
+
+  setTimeout(function() {
+    const rodape = document.getElementById('modalRodape');
+
+    if (!rodape) return;
+
+    rodape.innerHTML = `
+      <button class="btn green" onclick="abrirUploadDocumento('${escAttr(cpf)}')">
+        + Anexar documento
+      </button>
+
+      <button class="btn" onclick="criarSubpastaDocumentos('${escAttr(cpf)}')">
+        + Criar subpasta
+      </button>
+
+      <button class="btn" onclick="gerarPDFClientePorBeneficio('${escAttr(cpf)}')">
+        Contrato/procuração
+      </button>
+
+      <button class="btn" onclick="gerarFichaPDFDocumentos('${escAttr(cpf)}')">
+        Ficha PDF
+      </button>
+
+      <button class="btn" onclick="abrirWhatsAppDadosCliente('${escAttr(cpf)}')">
+        WhatsApp dados
+      </button>
+
+      <button class="btn" onclick="fecharModal()">
+        Fechar
+      </button>
+    `;
+  }, 300);
+};
   
   </script>
 
