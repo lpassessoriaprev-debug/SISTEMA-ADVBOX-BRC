@@ -2857,6 +2857,204 @@ async function carregarAgendaTela() {
     area.innerHTML = '<p>Erro ao carregar agenda: ' + esc(e.message) + '</p>';
   }
 }
+  // =====================================================
+// AGENDA — BLOCO 2
+// FORMULÁRIO INTELIGENTE POR TIPO
+// =====================================================
+
+async function abrirModalAgenda() {
+  if (!appState.clientes || !appState.clientes.length) {
+    await carregarClientes();
+  }
+
+  const clientes = appState.clientes || [];
+
+  const html = `
+    <label>Categoria *</label>
+    <select id="age_categoria" onchange="montarCamposAgendaPorCategoria()">
+      <option value="">Selecione</option>
+      <option value="TAREFA">Tarefa</option>
+      <option value="PRAZO">Prazo</option>
+      <option value="CONSULTA">Consulta Médica</option>
+      <option value="PERICIA">Perícia</option>
+    </select>
+
+    <label>Cliente *</label>
+    <select id="age_cpf">
+      <option value="">Selecione o cliente</option>
+      ${clientes.map(c => `
+        <option value="${escAttr(c.cpf)}">${esc(c.nome)} — ${esc(c.cpf)}</option>
+      `).join('')}
+    </select>
+
+    <div id="camposAgendaCategoria" style="margin-top:15px;"></div>
+  `;
+
+  const rodape = `
+    <button class="btn" onclick="fecharModal()">Cancelar</button>
+    <button class="btn green" onclick="salvarAgendaInteligente()">Salvar</button>
+  `;
+
+  abrirModal('Novo item da agenda', html, rodape);
+}
+
+
+function montarCamposAgendaPorCategoria() {
+  const categoria = document.getElementById('age_categoria').value;
+  const area = document.getElementById('camposAgendaCategoria');
+
+  if (!categoria) {
+    area.innerHTML = '';
+    return;
+  }
+
+  if (categoria === 'TAREFA') {
+    area.innerHTML = `
+      <label>Tarefa *</label>
+      <input id="age_tipo" placeholder="Ex: Juntar documentos, ligar para cliente">
+
+      <label>Data limite</label>
+      <input id="age_data" placeholder="DD/MM/AAAA">
+
+      <label>Responsável</label>
+      <select id="age_especialidade">
+        <option>PATRICIA</option>
+        <option>BRUNO</option>
+        <option>LORRAYNE</option>
+      </select>
+
+      <label>Prioridade</label>
+      <select id="age_local">
+        <option>Normal</option>
+        <option>Alta</option>
+        <option>Urgente</option>
+      </select>
+
+      <label>Observação</label>
+      <textarea id="age_obs"></textarea>
+
+      <input id="age_hora" type="hidden" value="">
+    `;
+  }
+
+  if (categoria === 'PRAZO') {
+    area.innerHTML = `
+      <label>Tipo do prazo *</label>
+      <input id="age_tipo" placeholder="Ex: Exigência INSS, recurso, manifestação">
+
+      <label>Data limite *</label>
+      <input id="age_data" placeholder="DD/MM/AAAA">
+
+      <label>Origem</label>
+      <select id="age_local">
+        <option>INSS</option>
+        <option>Judicial</option>
+        <option>Administrativo</option>
+      </select>
+
+      <label>Número do processo/protocolo</label>
+      <input id="age_especialidade" placeholder="Número do processo ou protocolo">
+
+      <label>Observação</label>
+      <textarea id="age_obs"></textarea>
+
+      <input id="age_hora" type="hidden" value="">
+    `;
+  }
+
+  if (categoria === 'CONSULTA') {
+    area.innerHTML = `
+      <label>Tipo *</label>
+      <input id="age_tipo" value="Consulta Médica">
+
+      <label>Data *</label>
+      <input id="age_data" placeholder="DD/MM/AAAA">
+
+      <label>Hora</label>
+      <input id="age_hora" placeholder="09:00">
+
+      <label>Médico</label>
+      <input id="age_especialidade" placeholder="Nome do médico / especialidade">
+
+      <label>Clínica / Local</label>
+      <input id="age_local" placeholder="Nome da clínica e endereço">
+
+      <label>Observação</label>
+      <textarea id="age_obs" placeholder="Vai emitir laudo? Valor? Documentos necessários?"></textarea>
+    `;
+  }
+
+  if (categoria === 'PERICIA') {
+    area.innerHTML = `
+      <label>Tipo de perícia *</label>
+      <select id="age_tipo">
+        <option>Perícia INSS</option>
+        <option>Perícia Judicial</option>
+      </select>
+
+      <label>Data *</label>
+      <input id="age_data" placeholder="DD/MM/AAAA">
+
+      <label>Hora</label>
+      <input id="age_hora" placeholder="09:00">
+
+      <label>Local</label>
+      <input id="age_local" placeholder="Agência INSS, fórum, clínica, endereço...">
+
+      <label>Especialidade</label>
+      <input id="age_especialidade" placeholder="Ortopédica, psiquiátrica, etc.">
+
+      <label>Observação</label>
+      <textarea id="age_obs" placeholder="Orientação enviada? Levar documentos? Nome do perito?"></textarea>
+    `;
+  }
+}
+
+
+async function salvarAgendaInteligente() {
+  const categoria = document.getElementById('age_categoria').value;
+  const cpf = document.getElementById('age_cpf').value;
+
+  if (!categoria) {
+    avisar('Selecione a categoria.');
+    return;
+  }
+
+  if (!cpf) {
+    avisar('Selecione o cliente.');
+    return;
+  }
+
+  const tipo = document.getElementById('age_tipo') ? document.getElementById('age_tipo').value : '';
+  const data = document.getElementById('age_data') ? document.getElementById('age_data').value : '';
+
+  if (!tipo || !data) {
+    avisar('Preencha pelo menos o tipo e a data.');
+    return;
+  }
+
+  const dados = {
+    cpf: cpf,
+    tipo: categoria + ' - ' + tipo,
+    dataAgendamento: data,
+    hora: document.getElementById('age_hora') ? document.getElementById('age_hora').value : '',
+    clinicaLocal: document.getElementById('age_local') ? document.getElementById('age_local').value : '',
+    especialidade: document.getElementById('age_especialidade') ? document.getElementById('age_especialidade').value : '',
+    observacao: document.getElementById('age_obs') ? document.getElementById('age_obs').value : '',
+    status: 'PENDENTE'
+  };
+
+  await apiPost('criarAgendamento', dados);
+
+  avisar('Item salvo na agenda.');
+
+  fecharModal();
+
+  setTimeout(function() {
+    carregarAgendaTela();
+    carregarDashboard();
+  }, 2500);
+}
   
   </script>
 
